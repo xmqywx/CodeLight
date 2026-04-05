@@ -34,26 +34,26 @@ export class EventRouter {
         return Array.from(this.connections.get(deviceId) || []);
     }
 
+    /** Broadcast to ALL devices' connections matching the filter */
     emitUpdate(
-        deviceId: string,
+        _deviceId: string,
         event: string,
         payload: unknown,
         filter: RecipientFilter,
         skipSocket?: Socket
     ) {
-        const conns = this.connections.get(deviceId);
-        if (!conns) return;
-
-        for (const conn of conns) {
-            if (conn.socket === skipSocket) continue;
-            if (this.shouldSend(conn, filter)) {
-                conn.socket.emit(event, payload);
+        for (const conns of this.connections.values()) {
+            for (const conn of conns) {
+                if (conn.socket === skipSocket) continue;
+                if (this.shouldSend(conn, filter)) {
+                    conn.socket.emit(event, payload);
+                }
             }
         }
     }
 
-    emitEphemeral(deviceId: string, event: string, payload: unknown) {
-        this.emitUpdate(deviceId, event, payload, { type: 'all' });
+    emitEphemeral(_deviceId: string, event: string, payload: unknown) {
+        this.emitUpdate(_deviceId, event, payload, { type: 'all' });
     }
 
     private shouldSend(conn: ClientConnection, filter: RecipientFilter): boolean {
