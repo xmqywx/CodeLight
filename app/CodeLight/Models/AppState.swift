@@ -87,6 +87,16 @@ final class AppState: ObservableObject {
         socket.sendMessage(sessionId: sessionId, content: text, localId: localId)
     }
 
+    /// Send a model/mode change via session metadata update
+    func updateModelMode(sessionId: String, model: String, mode: String) {
+        guard let socket else { return }
+        let metadata: [String: Any] = ["model": model, "mode": mode]
+        if let data = try? JSONSerialization.data(withJSONObject: metadata),
+           let str = String(data: data, encoding: .utf8) {
+            socket.sendMessage(sessionId: sessionId, content: "{\"type\":\"config\",\"model\":\"\(model)\",\"mode\":\"\(mode)\"}", localId: "config-\(UUID().uuidString)")
+        }
+    }
+
     // MARK: - Dynamic Island
 
     private func updateLiveActivity(sessionId: String, content: String, serverName: String) {

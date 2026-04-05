@@ -1,15 +1,20 @@
 import SwiftUI
 import AVFoundation
+import VisionKit
 import CodeLightProtocol
 
 /// QR code scanner for pairing with a CodeIsland instance.
 struct PairingView: View {
     @EnvironmentObject var appState: AppState
-    @State private var scannedCode: String?
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var manualUrl = "https://island.wdao.chat"
     @State private var showManualEntry = false
+    @State private var showScanner = false
+
+    private var isScannerAvailable: Bool {
+        DataScannerViewController.isSupported && DataScannerViewController.isAvailable
+    }
 
     var body: some View {
         VStack(spacing: 32) {
@@ -27,32 +32,32 @@ struct PairingView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
-            // QR Scanner placeholder — real implementation needs camera permission
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .frame(width: 250, height: 250)
-                .overlay {
-                    if isProcessing {
-                        ProgressView("Connecting...")
-                    } else {
-                        VStack {
-                            Image(systemName: "camera.fill")
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                            Text("Camera Preview")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-            if let errorMessage {
+            if isProcessing {
+                ProgressView("Connecting...")
+            } else if let errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
                     .font(.callout)
             }
 
-            Button("Enter Manually") {
+            // Scan button
+            Button {
+                if isScannerAvailable {
+                    showScanner = true
+                } else {
+                    errorMessage = "Camera not available on this device"
+                }
+            } label: {
+                Label("Scan QR Code", systemImage: "camera.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.blue, in: RoundedRectangle(cornerRadius: 12))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 40)
+
+            Button("Enter URL Manually") {
                 showManualEntry = true
             }
             .foregroundStyle(.secondary)
@@ -61,6 +66,21 @@ struct PairingView: View {
         }
         .padding()
         .navigationTitle("CodeLight")
+        .sheet(isPresented: $showScanner) {
+            NavigationStack {
+                QRScannerView { code in
+                    showScanner = false
+                    Task { await handleQRCode(code) }
+                }
+                .navigationTitle("Scan QR Code")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showScanner = false }
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showManualEntry) {
             ManualEntrySheet(url: $manualUrl) {
                 Task { await connectManually() }
@@ -76,6 +96,7 @@ struct PairingView: View {
         }
 
         isProcessing = true
+        errorMessage = nil
         let config = ServerConfig(url: payload.serverUrl, name: payload.deviceName)
         appState.addServer(config)
         await appState.connectTo(config)
@@ -87,6 +108,7 @@ struct PairingView: View {
         let url = manualUrl.hasPrefix("http") ? manualUrl : "https://\(manualUrl)"
         isProcessing = true
         showManualEntry = false
+        errorMessage = nil
         let config = ServerConfig(url: url, name: "Server")
         appState.addServer(config)
         await appState.connectTo(config)

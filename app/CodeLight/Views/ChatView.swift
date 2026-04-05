@@ -49,7 +49,10 @@ struct ChatView: View {
                 HStack(spacing: 12) {
                     Menu {
                         ForEach(models, id: \.self) { model in
-                            Button(model.capitalized) { selectedModel = model }
+                            Button(model.capitalized) {
+                                selectedModel = model
+                                appState.updateModelMode(sessionId: sessionId, model: model, mode: selectedMode)
+                            }
                         }
                     } label: {
                         Label(selectedModel.capitalized, systemImage: "cpu")
@@ -61,7 +64,10 @@ struct ChatView: View {
 
                     Menu {
                         ForEach(modes, id: \.self) { mode in
-                            Button(mode.capitalized) { selectedMode = mode }
+                            Button(mode.capitalized) {
+                                selectedMode = mode
+                                appState.updateModelMode(sessionId: sessionId, model: selectedModel, mode: mode)
+                            }
                         }
                     } label: {
                         Label(selectedMode.capitalized, systemImage: "shield")
@@ -144,59 +150,185 @@ private struct MessageRow: View {
     var body: some View {
         let parsed = parseContent(message.content)
 
-        HStack(alignment: .top, spacing: 8) {
-            // Role indicator
-            Circle()
-                .fill(roleColor(parsed.type))
-                .frame(width: 6, height: 6)
-                .padding(.top, 6)
+        HStack(alignment: .top, spacing: 10) {
+            // Role icon
+            Image(systemName: roleIcon(parsed.type))
+                .font(.caption)
+                .foregroundStyle(roleColor(parsed.type))
+                .frame(width: 16, height: 16)
+                .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
                 // Role label
                 Text(roleLabel(parsed.type))
                     .font(.caption2)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
                     .foregroundStyle(roleColor(parsed.type))
+                    .textCase(.uppercase)
 
-                // Content
-                if parsed.type == "tool" {
+                // Content by type
+                switch parsed.type {
+                case "tool":
                     toolView(parsed)
-                } else {
-                    Text(parsed.text)
+                case "thinking":
+                    thinkingView(parsed)
+                case "interrupted":
+                    Label("Interrupted by user", systemImage: "stop.circle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                default:
+                    textContentView(parsed.text)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
+    }
+
+    // MARK: - Content Views
+
+    private func textContentView(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Split by code blocks
+            let parts = splitCodeBlocks(text)
+            ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+                if part.isCode {
+                    // Code block
+                    VStack(alignment: .leading, spacing: 0) {
+                        if !part.language.isEmpty {
+                            Text(part.language)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.top, 4)
+                        }
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            Text(part.text)
+                                .font(.system(.caption, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(8)
+                        }
+                    }
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
+                } else if !part.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(part.text)
                         .font(.body)
                         .textSelection(.enabled)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
     }
 
     private func toolView(_ parsed: ParsedMessage) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: "wrench.fill")
-                    .font(.caption2)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: toolIcon(parsed.toolName ?? ""))
+                    .font(.caption)
                 Text(parsed.toolName ?? "tool")
                     .font(.caption)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
+                Spacer()
                 if let status = parsed.toolStatus {
-                    Text("· \(status)")
+                    Text(status)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(statusColor(status).opacity(0.2), in: Capsule())
+                        .foregroundStyle(statusColor(status))
                 }
             }
-            .foregroundStyle(.cyan)
 
             if !parsed.text.isEmpty {
                 Text(parsed.text)
-                    .font(.caption)
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    .lineLimit(4)
+            }
+
+            // Approval buttons for pending permissions
+            if parsed.toolStatus == "pending" || parsed.toolStatus == "waiting" {
+                HStack(spacing: 12) {
+                    Button {
+                        // Send deny via message (CodeIsland will handle)
+                        // For now this is a placeholder
+                    } label: {
+                        Label("Deny", systemImage: "xmark.circle")
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.red.opacity(0.2), in: Capsule())
+                    }
+                    .foregroundStyle(.red)
+
+                    Button {
+                        // Send approve via message
+                    } label: {
+                        Label("Allow", systemImage: "checkmark.circle")
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(.green.opacity(0.2), in: Capsule())
+                    }
+                    .foregroundStyle(.green)
+                }
+                .padding(.top, 4)
             }
         }
         .padding(8)
         .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func thinkingView(_ parsed: ParsedMessage) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "brain")
+                .font(.caption)
+            Text(parsed.text.isEmpty ? "Thinking..." : parsed.text)
+                .font(.caption)
+                .italic()
+                .lineLimit(2)
+        }
+        .foregroundStyle(.purple.opacity(0.8))
+        .padding(6)
+        .background(.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    // MARK: - Code Block Parsing
+
+    private struct TextPart {
+        let text: String
+        let isCode: Bool
+        let language: String
+    }
+
+    private func splitCodeBlocks(_ text: String) -> [TextPart] {
+        var parts: [TextPart] = []
+        let pattern = "```(\\w*)\\n([\\s\\S]*?)```"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return [TextPart(text: text, isCode: false, language: "")]
+        }
+
+        let nsText = text as NSString
+        var lastEnd = 0
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+
+        for match in matches {
+            let beforeRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
+            if beforeRange.length > 0 {
+                parts.append(TextPart(text: nsText.substring(with: beforeRange), isCode: false, language: ""))
+            }
+
+            let lang = match.numberOfRanges > 1 ? nsText.substring(with: match.range(at: 1)) : ""
+            let code = match.numberOfRanges > 2 ? nsText.substring(with: match.range(at: 2)) : ""
+            parts.append(TextPart(text: code, isCode: true, language: lang))
+
+            lastEnd = match.range.location + match.range.length
+        }
+
+        if lastEnd < nsText.length {
+            parts.append(TextPart(text: nsText.substring(from: lastEnd), isCode: false, language: ""))
+        }
+
+        return parts.isEmpty ? [TextPart(text: text, isCode: false, language: "")] : parts
     }
 
     // MARK: - Parse
@@ -209,7 +341,6 @@ private struct MessageRow: View {
     }
 
     private func parseContent(_ content: String) -> ParsedMessage {
-        // Try parsing as JSON (messages from CodeIsland)
         if let data = content.data(using: .utf8),
            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let type = dict["type"] as? String {
@@ -218,10 +349,10 @@ private struct MessageRow: View {
             let toolStatus = dict["toolStatus"] as? String
             return ParsedMessage(type: type, text: text, toolName: toolName, toolStatus: toolStatus)
         }
-
-        // Plain text (user messages from phone)
         return ParsedMessage(type: "user", text: content, toolName: nil, toolStatus: nil)
     }
+
+    // MARK: - Style Helpers
 
     private func roleColor(_ type: String) -> Color {
         switch type {
@@ -234,6 +365,17 @@ private struct MessageRow: View {
         }
     }
 
+    private func roleIcon(_ type: String) -> String {
+        switch type {
+        case "user": return "person.fill"
+        case "assistant": return "sparkles"
+        case "thinking": return "brain"
+        case "tool": return "wrench.and.screwdriver.fill"
+        case "interrupted": return "stop.circle.fill"
+        default: return "circle"
+        }
+    }
+
     private func roleLabel(_ type: String) -> String {
         switch type {
         case "user": return "You"
@@ -242,6 +384,29 @@ private struct MessageRow: View {
         case "tool": return "Tool"
         case "interrupted": return "Interrupted"
         default: return type
+        }
+    }
+
+    private func toolIcon(_ name: String) -> String {
+        switch name.lowercased() {
+        case "bash": return "terminal"
+        case "read": return "doc.text"
+        case "write": return "doc.badge.plus"
+        case "edit": return "pencil"
+        case "glob": return "folder.badge.magnifyingglass"
+        case "grep": return "magnifyingglass"
+        case "agent": return "person.2"
+        case "task": return "checklist"
+        default: return "gearshape"
+        }
+    }
+
+    private func statusColor(_ status: String) -> Color {
+        switch status.lowercased() {
+        case "success", "completed": return .green
+        case "error", "failed": return .red
+        case "running", "pending": return .orange
+        default: return .secondary
         }
     }
 }

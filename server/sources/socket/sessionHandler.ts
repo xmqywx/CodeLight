@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io';
 import { db } from '@/storage/db';
 import { allocateSessionSeq } from '@/storage/seq';
 import type { EventRouter } from './eventRouter';
+import { sendPushToDevice } from '@/push/apns';
 
 export function registerSessionHandler(
     socket: Socket,
@@ -48,6 +49,18 @@ export function registerSessionHandler(
                 sessionId: data.sid,
                 message: { id: message.id, seq, content: data.message, localId: data.localId },
             }, { type: 'all-interested-in-session', sessionId: data.sid }, socket);
+
+            // Send push notification for important events
+            try {
+                const parsed = JSON.parse(data.message);
+                if (parsed.type === 'tool' && parsed.toolStatus === 'error') {
+                    // Push all devices about errors
+                    const devices = await db.device.findMany({ select: { id: true } });
+                    for (const d of devices) {
+                        sendPushToDevice(d.id, { title: 'Tool Error', body: `${parsed.toolName || 'Tool'} failed` }, db);
+                    }
+                }
+            } catch {}
 
             callback?.({ id: message.id, seq });
         } catch (error) {
