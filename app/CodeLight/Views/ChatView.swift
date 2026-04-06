@@ -1,6 +1,17 @@
 import SwiftUI
 
-/// Chat view with markdown rendering and lazy message loading.
+/// A conversation turn — user question + all Claude's responses until next user message.
+struct ConversationTurn: Identifiable {
+    let id: String          // Uses user message ID (or "initial" if no user msg)
+    let userMessage: ChatMessage?
+    let replies: [ChatMessage]
+    let firstSeq: Int       // For sorting
+    let questionText: String // For navigation
+
+    var anchorId: String { id }
+}
+
+/// Chat view with markdown rendering, lazy loading, and turn-based grouping.
 struct ChatView: View {
     @EnvironmentObject var appState: AppState
     let sessionId: String
@@ -12,16 +23,23 @@ struct ChatView: View {
     @State private var hasMoreOlder = false
     @State private var selectedModel = "opus"
     @State private var selectedMode = "auto"
+    @State private var showQuestionNav = false
+    @State private var expandedTurns = Set<String>()
 
     private let models = ["opus", "sonnet", "haiku"]
     private let modes = ["auto", "default", "plan"]
 
+    // Group messages into turns
+    private var turns: [ConversationTurn] {
+        groupMessagesIntoTurns(messages)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Messages with lazy loading
+            // Messages grouped into turns with lazy loading
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 6) {
+                    LazyVStack(alignment: .leading, spacing: 12) {
                         // Load more button at top
                         if hasMoreOlder {
                             Button {
@@ -48,20 +66,30 @@ struct ChatView: View {
                                 .padding()
                         }
 
-                        ForEach(messages) { message in
-                            MessageRow(message: message)
-                                .id(message.id)
+                        ForEach(turns) { turn in
+                            TurnView(turn: turn, isExpanded: isExpanded(turn), onToggle: { toggleTurn(turn) })
+                                .id(turn.anchorId)
                         }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
                 .onChange(of: messages.count) {
-                    if let last = messages.last {
+                    if let lastTurn = turns.last {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
+                            proxy.scrollTo(lastTurn.anchorId, anchor: .bottom)
                         }
                     }
+                }
+                .sheet(isPresented: $showQuestionNav) {
+                    QuestionNavSheet(turns: turns) { turnId in
+                        showQuestionNav = false
+                        expandedTurns.insert(turnId)
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(turnId, anchor: .top)
+                        }
+                    }
+                    .presentationDetents([.medium, .large])
                 }
             }
 
@@ -72,6 +100,15 @@ struct ChatView: View {
         }
         .navigationTitle(sessionTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showQuestionNav = true
+                } label: {
+                    Image(systemName: "list.bullet.indent")
+                }
+            }
+        }
         .task {
             await loadMessages()
             startLiveActivity()
@@ -83,6 +120,93 @@ struct ChatView: View {
                 messages.append(event.message)
             }
         }
+    }
+
+    // MARK: - Turn State
+
+    private func isExpanded(_ turn: ConversationTurn) -> Bool {
+        // The last turn is always expanded by default; others follow user toggle
+        if turn.id == turns.last?.id { return true }
+        return expandedTurns.contains(turn.id)
+    }
+
+    private func toggleTurn(_ turn: ConversationTurn) {
+        if expandedTurns.contains(turn.id) {
+            expandedTurns.remove(turn.id)
+        } else {
+            expandedTurns.insert(turn.id)
+        }
+    }
+
+    // MARK: - Turn Grouping
+
+    private func groupMessagesIntoTurns(_ messages: [ChatMessage]) -> [ConversationTurn] {
+        var turns: [ConversationTurn] = []
+        var currentUserMsg: ChatMessage?
+        var currentReplies: [ChatMessage] = []
+        var currentFirstSeq: Int = 0
+        var initialReplies: [ChatMessage] = []
+
+        func flushCurrent() {
+            if let user = currentUserMsg {
+                let question = extractTextFromMessage(user)
+                turns.append(ConversationTurn(
+                    id: user.id,
+                    userMessage: user,
+                    replies: currentReplies,
+                    firstSeq: currentFirstSeq,
+                    questionText: question
+                ))
+            }
+            currentUserMsg = nil
+            currentReplies = []
+        }
+
+        for msg in messages {
+            let type = messageType(msg)
+
+            if type == "user" {
+                flushCurrent()
+                currentUserMsg = msg
+                currentFirstSeq = msg.seq
+            } else if currentUserMsg != nil {
+                currentReplies.append(msg)
+            } else {
+                initialReplies.append(msg)
+            }
+        }
+        flushCurrent()
+
+        // Prepend initial replies (before first user message) if any
+        if !initialReplies.isEmpty {
+            turns.insert(ConversationTurn(
+                id: "initial-\(initialReplies.first?.id ?? "")",
+                userMessage: nil,
+                replies: initialReplies,
+                firstSeq: initialReplies.first?.seq ?? 0,
+                questionText: String(localized: "session_start")
+            ), at: 0)
+        }
+
+        return turns
+    }
+
+    private func messageType(_ msg: ChatMessage) -> String {
+        if let data = msg.content.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let type = dict["type"] as? String {
+            return type
+        }
+        return "user" // Plain text = user message from phone
+    }
+
+    private func extractTextFromMessage(_ msg: ChatMessage) -> String {
+        if let data = msg.content.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let text = dict["text"] as? String {
+            return text
+        }
+        return msg.content
     }
 
     private func startLiveActivity() {
@@ -446,6 +570,144 @@ private struct MessageRow: View {
         case "error", "failed": return .red
         case "running", "pending": return .orange
         default: return .secondary
+        }
+    }
+}
+
+// MARK: - Turn View
+
+private struct TurnView: View {
+    let turn: ConversationTurn
+    let isExpanded: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // User question header
+            if turn.userMessage != nil {
+                Button(action: onToggle) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.blue)
+                            .frame(width: 16, height: 16)
+                            .background(.blue.opacity(0.15), in: Circle())
+
+                        Text(turn.questionText)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                            .lineLimit(isExpanded ? nil : 2)
+                            .multilineTextAlignment(.leading)
+
+                        Spacer()
+
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(10)
+                    .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+            } else {
+                // Initial replies (no user message)
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.caption2)
+                    Text(turn.questionText)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 4)
+            }
+
+            // Replies (collapsible)
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(turn.replies) { reply in
+                        MessageRow(message: reply)
+                    }
+                }
+                .padding(.leading, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if !turn.replies.isEmpty {
+                // Collapsed summary
+                HStack(spacing: 6) {
+                    Image(systemName: "ellipsis.bubble")
+                        .font(.caption2)
+                    Text("\(turn.replies.count) \(String(localized: "replies"))")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.leading, 16)
+            }
+        }
+    }
+}
+
+// MARK: - Question Navigation Sheet
+
+private struct QuestionNavSheet: View {
+    let turns: [ConversationTurn]
+    let onSelect: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if turns.isEmpty {
+                    ContentUnavailableView(
+                        String(localized: "no_questions_yet"),
+                        systemImage: "questionmark.bubble"
+                    )
+                } else {
+                    ForEach(Array(turns.enumerated()), id: \.element.id) { index, turn in
+                        Button {
+                            onSelect(turn.anchorId)
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Text("\(index + 1)")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 22, height: 22)
+                                    .background(.blue, in: Circle())
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(turn.questionText)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(3)
+                                        .multilineTextAlignment(.leading)
+
+                                    if turn.replies.count > 0 {
+                                        Text("\(turn.replies.count) \(String(localized: "replies"))")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "arrow.up.forward")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "jump_to_question"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "cancel")) { dismiss() }
+                }
+            }
         }
     }
 }
