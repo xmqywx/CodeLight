@@ -13,76 +13,62 @@ struct CodeLightLiveActivity: Widget {
 
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded Dynamic Island
+                // Expanded Dynamic Island — compact single-line layout
                 DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         PixelCharacterView(state: animationState(for: context.state.phase))
-                            .scaleEffect(0.6)
-                            .frame(width: 32, height: 28)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(context.state.projectName)
-                                .font(.system(size: 12, weight: .semibold))
-                                .lineLimit(1)
-                                .foregroundStyle(.white)
-                            Text(phaseLabel(context.state.phase))
-                                .font(.system(size: 10))
-                                .foregroundStyle(phaseColor(context.state.phase))
-                        }
+                            .scaleEffect(0.5)
+                            .frame(width: 28, height: 24)
+                        Text(context.state.projectName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .foregroundStyle(.white)
                     }
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.startedAtDate, style: .timer)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: 50)
+                    HStack(spacing: 4) {
+                        if let toolName = context.state.toolName, !toolName.isEmpty {
+                            Image(systemName: toolIcon(toolName))
+                                .font(.system(size: 10))
+                            Text(toolName)
+                                .font(.system(size: 10, design: .monospaced))
+                                .lineLimit(1)
+                        } else {
+                            Text(phaseLabel(context.state.phase))
+                                .font(.system(size: 11))
+                        }
+                    }
+                    .foregroundStyle(phaseColor(context.state.phase))
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        // Tool info (if active)
-                        if let toolName = context.state.toolName, !toolName.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: toolIcon(toolName))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.cyan)
-                                Text(toolName)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .lineLimit(1)
-                                    .foregroundStyle(.white.opacity(0.8))
-                                Spacer()
-                            }
+                    // Single line bottom: user question OR Claude summary (whichever is more recent)
+                    if let assistant = context.state.lastAssistantSummary, !assistant.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.green)
+                            Text(assistant)
+                                .font(.system(size: 11))
+                                .lineLimit(1)
+                                .foregroundStyle(.white.opacity(0.75))
+                            Spacer()
                         }
-
-                        // Last user question
-                        if let userMsg = context.state.lastUserMessage, !userMsg.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.blue)
-                                    .padding(.top, 1)
-                                Text(userMsg)
-                                    .font(.system(size: 11))
-                                    .lineLimit(2)
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
+                        .padding(.horizontal, 2)
+                    } else if let userMsg = context.state.lastUserMessage, !userMsg.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.blue)
+                            Text(userMsg)
+                                .font(.system(size: 11))
+                                .lineLimit(1)
+                                .foregroundStyle(.white.opacity(0.9))
+                            Spacer()
                         }
-
-                        // Claude's latest response summary
-                        if let assistant = context.state.lastAssistantSummary, !assistant.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(.green)
-                                    .padding(.top, 1)
-                                Text(assistant)
-                                    .font(.system(size: 11))
-                                    .lineLimit(2)
-                                    .foregroundStyle(.white.opacity(0.7))
-                            }
-                        }
+                        .padding(.horizontal, 2)
                     }
-                    .padding(.horizontal, 4)
                 }
             } compactLeading: {
                 // Compact leading — pixel cat + project name
