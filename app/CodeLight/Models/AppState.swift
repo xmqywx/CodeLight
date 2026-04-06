@@ -107,30 +107,29 @@ final class AppState: ObservableObject {
 
     // MARK: - Dynamic Island
 
-    /// Start Live Activities for all active sessions — fetches latest phase per session
+    /// Start Live Activity for the MOST RECENTLY ACTIVE session only (single-mode)
     func startLiveActivitiesForActiveSessions() {
         let serverName = currentServer?.name ?? "Server"
         guard let socket = self.socket else { return }
 
-        for session in sessions where session.active {
-            Task { [weak self] in
-                // Fetch latest messages to find the most recent phase state
-                let (phase, toolName, userMsg, assistantMsg) = await self?.fetchLatestPhaseState(sessionId: session.id, socket: socket) ?? ("idle", nil, nil, nil)
+        // Pick only the most recently active session (sessions are already sorted by updatedAt desc)
+        guard let session = sessions.first(where: { $0.active }) else { return }
 
-                await MainActor.run {
-                    LiveActivityManager.shared.update(
-                        sessionId: session.id,
-                        phase: phase,
-                        toolName: toolName,
-                        projectName: session.metadata?.title ?? "Session",
-                        serverName: serverName,
-                        lastUserMessage: userMsg,
-                        lastAssistantSummary: assistantMsg
-                    )
-                    // Cache for later updates
-                    if let u = userMsg { self?.lastUserMessageBySession[session.id] = u }
-                    if let a = assistantMsg { self?.lastAssistantMessageBySession[session.id] = a }
-                }
+        Task { [weak self] in
+            let (phase, toolName, userMsg, assistantMsg) = await self?.fetchLatestPhaseState(sessionId: session.id, socket: socket) ?? ("idle", nil, nil, nil)
+
+            await MainActor.run {
+                LiveActivityManager.shared.update(
+                    sessionId: session.id,
+                    phase: phase,
+                    toolName: toolName,
+                    projectName: session.metadata?.title ?? "Session",
+                    serverName: serverName,
+                    lastUserMessage: userMsg,
+                    lastAssistantSummary: assistantMsg
+                )
+                if let u = userMsg { self?.lastUserMessageBySession[session.id] = u }
+                if let a = assistantMsg { self?.lastAssistantMessageBySession[session.id] = a }
             }
         }
     }

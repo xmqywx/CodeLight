@@ -50,7 +50,15 @@ final class LiveActivityManager {
                 print("[LiveActivity] BLOCKED: Live Activities not enabled in iOS Settings")
                 return
             }
-            // Don't end other activities - allow multiple Live Activities (one per session)
+
+            // Enforce single Live Activity: end all others first
+            for (otherId, otherActivity) in activities where otherId != sessionId {
+                Task {
+                    await otherActivity.end(nil, dismissalPolicy: .immediate)
+                }
+                activities.removeValue(forKey: otherId)
+                print("[LiveActivity] Ended other activity: \(otherId.prefix(8)) (single-mode)")
+            }
 
             let attributes = CodeLightActivityAttributes(sessionId: sessionId, serverName: serverName)
             let state = CodeLightActivityAttributes.ContentState(
