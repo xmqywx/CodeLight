@@ -4,6 +4,7 @@ import SwiftUI
 struct CodeLightApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState = AppState.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -12,6 +13,15 @@ struct CodeLightApp: App {
                 .task {
                     await PushManager.shared.requestPermission()
                 }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                // Delay briefly to ensure app is fully visible before starting Live Activities
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s
+                    appState.startLiveActivitiesForActiveSessions()
+                }
+            }
         }
     }
 }
