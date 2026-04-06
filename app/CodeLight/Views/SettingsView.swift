@@ -4,6 +4,9 @@ import CodeLightCrypto
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("tokenExpiryDays") private var tokenExpiryDays: Int = 30
+
+    private let expiryOptions = [7, 14, 30, 90, 180, 365]
 
     var body: some View {
         List {
@@ -42,6 +45,21 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(String(localized: "connection"))
+            }
+
+            // Security
+            Section {
+                Picker(selection: $tokenExpiryDays) {
+                    ForEach(expiryOptions, id: \.self) { days in
+                        Text(expiryLabel(days)).tag(days)
+                    }
+                } label: {
+                    Label(String(localized: "token_expiry"), systemImage: "clock.badge.checkmark")
+                }
+            } header: {
+                Text(String(localized: "security"))
+            } footer: {
+                Text(String(localized: "token_expiry_footer"))
             }
 
             // Actions
@@ -127,5 +145,17 @@ struct SettingsView: View {
         }
         .navigationTitle(String(localized: "settings"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func expiryLabel(_ days: Int) -> String {
+        switch days {
+        case 7: return String(localized: "7_days")
+        case 14: return String(localized: "14_days")
+        case 30: return String(localized: "30_days")
+        case 90: return String(localized: "90_days")
+        case 180: return String(localized: "180_days")
+        case 365: return String(localized: "1_year")
+        default: return "\(days)d"
+        }
     }
 }

@@ -30,7 +30,7 @@ export async function authRoutes(app: FastifyInstance) {
             update: {},
         });
 
-        const token = createToken(device.id, config.masterSecret);
+        const token = createToken(device.id, config.masterSecret, config.tokenExpiryDays);
         return { success: true, token, deviceId: device.id };
     });
 }
