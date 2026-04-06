@@ -2,10 +2,12 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '@/storage/db';
 import { authMiddleware } from '@/auth/middleware';
+import { linkDevices } from '@/auth/deviceAccess';
 
 export async function pairingRoutes(app: FastifyInstance) {
 
     // Step 1: CodeIsland creates a pairing request (authenticated)
+    // Stores the initiator's deviceId for later verification
     app.post('/v1/pairing/request', {
         preHandler: authMiddleware,
         schema: {
@@ -25,14 +27,23 @@ export async function pairingRoutes(app: FastifyInstance) {
 
         const pairing = await db.pairingRequest.upsert({
             where: { tempPublicKey },
-            create: { tempPublicKey, serverUrl, deviceName, expiresAt },
-            update: { serverUrl, deviceName, expiresAt, response: null, responseDeviceId: null },
+            create: {
+                tempPublicKey,
+                serverUrl,
+                deviceName,
+                expiresAt,
+                // Store initiator's deviceId in responseDeviceId temporarily
+                // (will be overwritten when response comes in)
+                responseDeviceId: request.deviceId,
+            },
+            update: { serverUrl, deviceName, expiresAt, response: null, responseDeviceId: request.deviceId },
         });
 
         return { id: pairing.id, expiresAt: pairing.expiresAt.toISOString() };
     });
 
-    // Step 2: CodeLight scans QR, responds with its public key (authenticated)
+    // Step 2: CodeLight scans QR, responds (authenticated)
+    // This creates a DeviceLink between the two devices
     app.post('/v1/pairing/respond', {
         preHandler: authMiddleware,
         schema: {
@@ -56,18 +67,30 @@ export async function pairingRoutes(app: FastifyInstance) {
         }
 
         if (pairing.expiresAt < new Date()) {
+            await db.pairingRequest.delete({ where: { id: pairing.id } });
             return reply.code(410).send({ error: 'Pairing request expired' });
         }
 
+        const initiatorDeviceId = pairing.responseDeviceId;
+        const responderDeviceId = request.deviceId!;
+
+        // Create device link (bidirectional access)
+        if (initiatorDeviceId && initiatorDeviceId !== responderDeviceId) {
+            await linkDevices(initiatorDeviceId, responderDeviceId);
+            console.log(`[pairing] Linked devices: ${initiatorDeviceId} <-> ${responderDeviceId}`);
+        }
+
+        // Update pairing with response
         await db.pairingRequest.update({
             where: { id: pairing.id },
-            data: { response, responseDeviceId: request.deviceId },
+            data: { response, responseDeviceId: responderDeviceId },
         });
 
-        return { success: true };
+        return { success: true, linkedWith: initiatorDeviceId };
     });
 
     // Step 3: CodeIsland polls for response
+    // Only the initiator can poll (verified by deviceId)
     app.get('/v1/pairing/status', {
         preHandler: authMiddleware,
         schema: {
@@ -76,9 +99,7 @@ export async function pairingRoutes(app: FastifyInstance) {
             }),
         },
     }, async (request, reply) => {
-        const { tempPublicKey } = request.query as {
-            tempPublicKey: string;
-        };
+        const { tempPublicKey } = request.query as { tempPublicKey: string };
 
         const pairing = await db.pairingRequest.findUnique({
             where: { tempPublicKey },
@@ -89,6 +110,7 @@ export async function pairingRoutes(app: FastifyInstance) {
         }
 
         if (pairing.response) {
+            // Clean up — pairing complete
             await db.pairingRequest.delete({ where: { id: pairing.id } });
             return {
                 status: 'paired',

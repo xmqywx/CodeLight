@@ -81,7 +81,7 @@ struct ChatView: View {
                 }
 
                 HStack(spacing: 8) {
-                    TextField("Message...", text: $inputText, axis: .vertical)
+                    TextField(String(localized: "message_placeholder"), text: $inputText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .padding(10)
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -119,7 +119,7 @@ struct ChatView: View {
     }
 
     private var sessionTitle: String {
-        appState.sessions.first { $0.id == sessionId }?.metadata?.title ?? "Session"
+        appState.sessions.first { $0.id == sessionId }?.metadata?.title ?? String(localized: "session")
     }
 
     private func loadMessages() async {
@@ -173,7 +173,7 @@ private struct MessageRow: View {
                 case "thinking":
                     thinkingView(parsed)
                 case "interrupted":
-                    Label("Interrupted by user", systemImage: "stop.circle")
+                    Label(String(localized: "interrupted_by_user"), systemImage: "stop.circle")
                         .font(.caption)
                         .foregroundStyle(.red)
                 default:
@@ -252,7 +252,7 @@ private struct MessageRow: View {
                         // Send deny via message (CodeIsland will handle)
                         // For now this is a placeholder
                     } label: {
-                        Label("Deny", systemImage: "xmark.circle")
+                        Label(String(localized: "deny"), systemImage: "xmark.circle")
                             .font(.caption)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -263,7 +263,7 @@ private struct MessageRow: View {
                     Button {
                         // Send approve via message
                     } label: {
-                        Label("Allow", systemImage: "checkmark.circle")
+                        Label(String(localized: "allow"), systemImage: "checkmark.circle")
                             .font(.caption)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -282,7 +282,7 @@ private struct MessageRow: View {
         HStack(spacing: 6) {
             Image(systemName: "brain")
                 .font(.caption)
-            Text(parsed.text.isEmpty ? "Thinking..." : parsed.text)
+            Text(parsed.text.isEmpty ? String(localized: "thinking_ellipsis") : parsed.text)
                 .font(.caption)
                 .italic()
                 .lineLimit(2)
@@ -378,11 +378,11 @@ private struct MessageRow: View {
 
     private func roleLabel(_ type: String) -> String {
         switch type {
-        case "user": return "You"
-        case "assistant": return "Claude"
-        case "thinking": return "Thinking"
-        case "tool": return "Tool"
-        case "interrupted": return "Interrupted"
+        case "user": return String(localized: "role_you")
+        case "assistant": return String(localized: "role_claude")
+        case "thinking": return String(localized: "role_thinking")
+        case "tool": return String(localized: "role_tool")
+        case "interrupted": return String(localized: "role_interrupted")
         default: return type
         }
     }

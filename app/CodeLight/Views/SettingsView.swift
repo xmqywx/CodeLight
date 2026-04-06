@@ -11,7 +11,7 @@ struct SettingsView: View {
             Section {
                 if let server = appState.currentServer {
                     HStack {
-                        Label("Server", systemImage: "server.rack")
+                        Label(String(localized: "server"), systemImage: "server.rack")
                         Spacer()
                         Text(URL(string: server.url)?.host ?? server.url)
                             .foregroundStyle(.secondary)
@@ -19,29 +19,29 @@ struct SettingsView: View {
                     }
 
                     HStack {
-                        Label("Status", systemImage: "circle.fill")
+                        Label(String(localized: "status"), systemImage: "circle.fill")
                             .foregroundStyle(appState.isConnected ? .green : .red)
                         Spacer()
-                        Text(appState.isConnected ? "Connected" : "Disconnected")
+                        Text(appState.isConnected ? String(localized: "connected") : String(localized: "disconnected"))
                             .foregroundStyle(.secondary)
                     }
 
                     HStack {
-                        Label("Device Name", systemImage: "iphone")
+                        Label(String(localized: "device_name"), systemImage: "iphone")
                         Spacer()
                         Text(server.name)
                             .foregroundStyle(.secondary)
                     }
 
                     HStack {
-                        Label("Paired", systemImage: "calendar")
+                        Label(String(localized: "paired"), systemImage: "calendar")
                         Spacer()
                         Text(server.pairedAt, style: .date)
                             .foregroundStyle(.secondary)
                     }
                 }
             } header: {
-                Text("Connection")
+                Text(String(localized: "connection"))
             }
 
             // Actions
@@ -53,7 +53,7 @@ struct SettingsView: View {
                         }
                     }
                 } label: {
-                    Label("Reconnect", systemImage: "arrow.clockwise")
+                    Label(String(localized: "reconnect"), systemImage: "arrow.clockwise")
                 }
 
                 Button {
@@ -62,7 +62,7 @@ struct SettingsView: View {
                     UserDefaults.standard.removeObject(forKey: "servers")
                     dismiss()
                 } label: {
-                    Label("Scan New QR Code", systemImage: "qrcode.viewfinder")
+                    Label(String(localized: "scan_new_qr_code"), systemImage: "qrcode.viewfinder")
                 }
 
                 Button(role: .destructive) {
@@ -71,18 +71,18 @@ struct SettingsView: View {
                     }
                     dismiss()
                 } label: {
-                    Label("Disconnect & Remove", systemImage: "wifi.slash")
+                    Label(String(localized: "disconnect_remove"), systemImage: "wifi.slash")
                 }
             } header: {
-                Text("Actions")
+                Text(String(localized: "actions"))
             }
 
             // Notifications
             Section {
                 HStack {
-                    Label("Push Notifications", systemImage: "bell.badge")
+                    Label(String(localized: "push_notifications"), systemImage: "bell.badge")
                     Spacer()
-                    Text(PushManager.shared.isRegistered ? "Enabled" : "Disabled")
+                    Text(PushManager.shared.isRegistered ? String(localized: "enabled") : String(localized: "disabled"))
                         .foregroundStyle(.secondary)
                 }
 
@@ -90,42 +90,42 @@ struct SettingsView: View {
                     Button {
                         Task { await PushManager.shared.requestPermission() }
                     } label: {
-                        Text("Enable Notifications")
+                        Text(String(localized: "enable_notifications"))
                     }
                 }
             } header: {
-                Text("Notifications")
+                Text(String(localized: "notifications"))
             }
 
             // About
             Section {
                 HStack {
-                    Label("Version", systemImage: "info.circle")
+                    Label(String(localized: "version"), systemImage: "info.circle")
                     Spacer()
                     Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0")
                         .foregroundStyle(.secondary)
                 }
 
                 Link(destination: URL(string: "https://github.com/xmqywx/CodeLight")!) {
-                    Label("GitHub", systemImage: "link")
+                    Label(String(localized: "github"), systemImage: "link")
                 }
 
                 Link(destination: URL(string: "https://github.com/xmqywx/CodeIsland")!) {
-                    Label("CodeIsland (Mac companion)", systemImage: "desktopcomputer")
+                    Label(String(localized: "codeisland_mac_companion"), systemImage: "desktopcomputer")
                 }
 
                 Link(destination: URL(string: "https://github.com/xmqywx/CodeLight/blob/main/PRIVACY.md")!) {
-                    Label("Privacy Policy", systemImage: "hand.raised")
+                    Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
                 }
             } header: {
-                Text("About")
+                Text(String(localized: "about"))
             } footer: {
-                Text("CodeLight — Monitor and control Claude Code from your iPhone.\nMade with passion by the CodeIsland team.")
+                Text(String(localized: "about_footer"))
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(String(localized: "settings"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -13,16 +13,16 @@ struct SessionDetailView: View {
             if let session {
                 Section {
                     HStack {
-                        Label("Status", systemImage: "circle.fill")
+                        Label(String(localized: "status"), systemImage: "circle.fill")
                             .foregroundStyle(session.active ? .green : .gray)
                         Spacer()
-                        Text(session.active ? "Active" : "Inactive")
+                        Text(session.active ? String(localized: "active_status") : String(localized: "inactive_status"))
                             .foregroundStyle(.secondary)
                     }
 
                     if let path = session.metadata?.path {
                         HStack {
-                            Label("Path", systemImage: "folder")
+                            Label(String(localized: "path"), systemImage: "folder")
                             Spacer()
                             Text(path)
                                 .font(.caption)
@@ -34,7 +34,7 @@ struct SessionDetailView: View {
 
                     if let model = session.metadata?.model {
                         HStack {
-                            Label("Model", systemImage: "cpu")
+                            Label(String(localized: "model"), systemImage: "cpu")
                             Spacer()
                             Text(model.capitalized)
                                 .foregroundStyle(.secondary)
@@ -43,7 +43,7 @@ struct SessionDetailView: View {
 
                     if let mode = session.metadata?.mode {
                         HStack {
-                            Label("Mode", systemImage: "shield")
+                            Label(String(localized: "mode"), systemImage: "shield")
                             Spacer()
                             Text(mode.capitalized)
                                 .foregroundStyle(.secondary)
@@ -51,25 +51,25 @@ struct SessionDetailView: View {
                     }
 
                     HStack {
-                        Label("Last Active", systemImage: "clock")
+                        Label(String(localized: "last_active"), systemImage: "clock")
                         Spacer()
                         Text(session.lastActiveAt, style: .relative)
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Session Info")
+                    Text(String(localized: "session_info"))
                 }
 
                 Section {
                     NavigationLink(value: sessionId) {
-                        Label("Open Chat", systemImage: "bubble.left.and.bubble.right")
+                        Label(String(localized: "open_chat"), systemImage: "bubble.left.and.bubble.right")
                     }
                 }
             } else {
-                ContentUnavailableView("Session Not Found", systemImage: "exclamationmark.triangle")
+                ContentUnavailableView(String(localized: "session_not_found"), systemImage: "exclamationmark.triangle")
             }
         }
-        .navigationTitle(session?.metadata?.title ?? "Session")
+        .navigationTitle(session?.metadata?.title ?? String(localized: "session"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

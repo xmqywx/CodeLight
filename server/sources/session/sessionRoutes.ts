@@ -3,22 +3,24 @@ import { z } from 'zod';
 import { db } from '@/storage/db';
 import { authMiddleware } from '@/auth/middleware';
 import { allocateSessionSeqBatch } from '@/storage/seq';
+import { getAccessibleDeviceIds, canAccessSession } from '@/auth/deviceAccess';
 
 export async function sessionRoutes(app: FastifyInstance) {
 
-    // List sessions
+    // List sessions — only own + linked devices
     app.get('/v1/sessions', {
         preHandler: authMiddleware,
     }, async (request) => {
-        // Return all sessions (cross-device visibility for personal server)
+        const accessibleIds = await getAccessibleDeviceIds(request.deviceId!);
         const sessions = await db.session.findMany({
+            where: { deviceId: { in: accessibleIds } },
             orderBy: { updatedAt: 'desc' },
             take: 150,
         });
         return { sessions };
     });
 
-    // Create or load session (idempotent by tag)
+    // Create or load session (idempotent by tag) — own device only
     app.post('/v1/sessions', {
         preHandler: authMiddleware,
         schema: {
@@ -40,7 +42,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         return session;
     });
 
-    // Get session messages (cursor-based)
+    // Get session messages — own + linked devices
     app.get('/v1/sessions/:sessionId/messages', {
         preHandler: authMiddleware,
         schema: {
@@ -54,16 +56,12 @@ export async function sessionRoutes(app: FastifyInstance) {
         const { sessionId } = request.params as { sessionId: string };
         const { after_seq, limit } = request.query as { after_seq: number; limit: number };
 
-        const session = await db.session.findFirst({
-            where: { id: sessionId },
-        });
-        if (!session) {
-            return reply.code(404).send({ error: 'Session not found' });
+        if (!await canAccessSession(request.deviceId!, sessionId)) {
+            return reply.code(403).send({ error: 'Access denied' });
         }
 
         let messages;
         if (after_seq === 0) {
-            // Default: return latest messages (most recent first, then reverse for display order)
             const latest = await db.sessionMessage.findMany({
                 where: { sessionId },
                 orderBy: { seq: 'desc' },
@@ -72,7 +70,6 @@ export async function sessionRoutes(app: FastifyInstance) {
             messages = latest.reverse();
             return { messages, hasMore: latest.length === limit };
         } else {
-            // Cursor mode: return messages after a specific seq
             const result = await db.sessionMessage.findMany({
                 where: { sessionId, seq: { gt: after_seq } },
                 orderBy: { seq: 'asc' },
@@ -83,7 +80,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         }
     });
 
-    // Batch send messages
+    // Batch send messages — own + linked devices
     app.post('/v1/sessions/:sessionId/messages', {
         preHandler: authMiddleware,
         schema: {
@@ -99,11 +96,8 @@ export async function sessionRoutes(app: FastifyInstance) {
         const { sessionId } = request.params as { sessionId: string };
         const { messages } = request.body as { messages: Array<{ content: string; localId?: string }> };
 
-        const session = await db.session.findFirst({
-            where: { id: sessionId },
-        });
-        if (!session) {
-            return reply.code(404).send({ error: 'Session not found' });
+        if (!await canAccessSession(request.deviceId!, sessionId)) {
+            return reply.code(403).send({ error: 'Access denied' });
         }
 
         // Filter out duplicates by localId
@@ -153,17 +147,18 @@ export async function sessionRoutes(app: FastifyInstance) {
         };
     });
 
-    // Delete session
+    // Delete session — own device only
     app.delete('/v1/sessions/:sessionId', {
         preHandler: authMiddleware,
     }, async (request, reply) => {
-        const { sessionId } = request.params as { sessionId: string };
+        const { sessionId } = (request.params as { sessionId: string });
 
+        // Only the session owner can delete
         const session = await db.session.findFirst({
-            where: { id: sessionId },
+            where: { id: sessionId, deviceId: request.deviceId! },
         });
         if (!session) {
-            return reply.code(404).send({ error: 'Session not found' });
+            return reply.code(403).send({ error: 'Access denied: only owner can delete' });
         }
 
         await db.$transaction([
@@ -174,7 +169,7 @@ export async function sessionRoutes(app: FastifyInstance) {
         return { success: true };
     });
 
-    // Update session metadata (optimistic concurrency)
+    // Update session metadata — own + linked devices
     app.patch('/v1/sessions/:sessionId/metadata', {
         preHandler: authMiddleware,
         schema: {
@@ -187,6 +182,10 @@ export async function sessionRoutes(app: FastifyInstance) {
     }, async (request, reply) => {
         const { sessionId } = request.params as { sessionId: string };
         const { metadata, expectedVersion } = request.body as { metadata: string; expectedVersion: number };
+
+        if (!await canAccessSession(request.deviceId!, sessionId)) {
+            return reply.code(403).send({ error: 'Access denied' });
+        }
 
         const result = await db.session.updateMany({
             where: {

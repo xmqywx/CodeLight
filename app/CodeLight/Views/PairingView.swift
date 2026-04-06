@@ -24,16 +24,16 @@ struct PairingView: View {
                 .font(.system(size: 80))
                 .foregroundStyle(.blue)
 
-            Text("Scan QR Code")
+            Text(String(localized: "scan_qr_code"))
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("Open CodeIsland on your Mac\nand scan the pairing QR code")
+            Text(String(localized: "scan_qr_instruction"))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
 
             if isProcessing {
-                ProgressView("Connecting...")
+                ProgressView(String(localized: "connecting"))
             } else if let errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
@@ -45,10 +45,10 @@ struct PairingView: View {
                 if isScannerAvailable {
                     showScanner = true
                 } else {
-                    errorMessage = "Camera not available on this device"
+                    errorMessage = String(localized: "camera_not_available")
                 }
             } label: {
-                Label("Scan QR Code", systemImage: "camera.fill")
+                Label(String(localized: "scan_qr_code"), systemImage: "camera.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -57,7 +57,7 @@ struct PairingView: View {
             }
             .padding(.horizontal, 40)
 
-            Button("Enter URL Manually") {
+            Button(String(localized: "enter_url_manually")) {
                 showManualEntry = true
             }
             .foregroundStyle(.secondary)
@@ -72,11 +72,11 @@ struct PairingView: View {
                     showScanner = false
                     Task { await handleQRCode(code) }
                 }
-                .navigationTitle("Scan QR Code")
+                .navigationTitle(String(localized: "scan_qr_code"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showScanner = false }
+                        Button(String(localized: "cancel")) { showScanner = false }
                     }
                 }
             }
@@ -91,7 +91,7 @@ struct PairingView: View {
     private func handleQRCode(_ code: String) async {
         guard let data = code.data(using: .utf8),
               let payload = try? JSONDecoder().decode(PairingQRPayload.self, from: data) else {
-            errorMessage = "Invalid QR code"
+            errorMessage = String(localized: "invalid_qr_code")
             return
         }
 
@@ -109,7 +109,7 @@ struct PairingView: View {
         isProcessing = true
         showManualEntry = false
         errorMessage = nil
-        let config = ServerConfig(url: url, name: "Server")
+        let config = ServerConfig(url: url, name: String(localized: "server"))
         appState.addServer(config)
         await appState.connectTo(config)
         isProcessing = false
@@ -125,21 +125,21 @@ private struct ManualEntrySheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Server URL") {
+                Section(String(localized: "server_url")) {
                     TextField("https://island.wdao.chat", text: $url)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                 }
             }
-            .navigationTitle("Manual Entry")
+            .navigationTitle(String(localized: "manual_entry"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Connect") { onConnect() }
+                    Button(String(localized: "connect")) { onConnect() }
                         .disabled(url.isEmpty)
                 }
             }

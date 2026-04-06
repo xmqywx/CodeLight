@@ -15,7 +15,7 @@ struct SessionListView: View {
                 if isLoading {
                     VStack(spacing: 12) {
                         ProgressView()
-                        Text("Loading sessions...")
+                        Text(String(localized: "loading_sessions"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -73,11 +73,11 @@ struct SessionListView: View {
                 .foregroundStyle(.secondary.opacity(0.5))
 
             VStack(spacing: 8) {
-                Text("No Sessions Yet")
+                Text(String(localized: "no_sessions_yet"))
                     .font(.title3)
                     .fontWeight(.semibold)
 
-                Text("Start a Claude Code session on your Mac\nwith CodeIsland running to see it here.")
+                Text(String(localized: "no_sessions_instruction"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -87,21 +87,21 @@ struct SessionListView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "1.circle.fill")
                         .foregroundStyle(.blue)
-                    Text("Install CodeIsland on your Mac")
+                    Text(String(localized: "step_install_codeisland"))
                         .font(.caption)
                 }
 
                 HStack(spacing: 8) {
                     Image(systemName: "2.circle.fill")
                         .foregroundStyle(.blue)
-                    Text("Start a Claude Code session")
+                    Text(String(localized: "step_start_session"))
                         .font(.caption)
                 }
 
                 HStack(spacing: 8) {
                     Image(systemName: "3.circle.fill")
                         .foregroundStyle(.blue)
-                    Text("Sessions appear here automatically")
+                    Text(String(localized: "step_sessions_appear"))
                         .font(.caption)
                 }
             }
@@ -111,7 +111,7 @@ struct SessionListView: View {
             Button {
                 Task { await refreshSessions() }
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Label(String(localized: "refresh"), systemImage: "arrow.clockwise")
                     .font(.subheadline)
             }
             .buttonStyle(.bordered)
@@ -136,7 +136,7 @@ struct SessionListView: View {
                     }
                 } header: {
                     HStack {
-                        Text("Active")
+                        Text(String(localized: "active"))
                         Spacer()
                         Text("\(active.count)")
                             .font(.caption2)
@@ -151,7 +151,7 @@ struct SessionListView: View {
             // Inactive sessions
             let inactive = appState.sessions.filter { !$0.active }
             if !inactive.isEmpty {
-                Section("Recent") {
+                Section(String(localized: "recent")) {
                     ForEach(inactive) { session in
                         NavigationLink(value: session.id) {
                             SessionRow(session: session)

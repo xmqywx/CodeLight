@@ -25,7 +25,7 @@ export interface TokenPayload {
 }
 
 export function createToken(deviceId: string, secret: string): string {
-    return jwt.sign({ deviceId }, secret);
+    return jwt.sign({ deviceId }, secret, { expiresIn: '30d' });
 }
 
 export function verifyToken(token: string, secret: string): TokenPayload | null {

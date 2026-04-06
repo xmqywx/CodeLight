@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io';
 import { db } from '@/storage/db';
 import { allocateSessionSeq } from '@/storage/seq';
 import type { EventRouter } from './eventRouter';
+import { canAccessSession } from '@/auth/deviceAccess';
 import { sendPushToDevice } from '@/push/apns';
 
 export function registerSessionHandler(
@@ -15,12 +16,10 @@ export function registerSessionHandler(
         localId?: string;
     }, callback?: (result: any) => void) => {
         try {
-            const session = await db.session.findFirst({
-                where: { id: data.sid },
-            });
-            if (!session) {
-                console.log(`[sessionHandler] Session not found: ${data.sid}`);
-                callback?.({ error: 'Session not found' });
+            // Verify device can access this session
+            if (!await canAccessSession(deviceId, data.sid)) {
+                console.log(`[sessionHandler] Access denied: device ${deviceId} → session ${data.sid}`);
+                callback?.({ error: 'Access denied' });
                 return;
             }
 
@@ -50,14 +49,13 @@ export function registerSessionHandler(
                 message: { id: message.id, seq, content: data.message, localId: data.localId },
             }, { type: 'all-interested-in-session', sessionId: data.sid }, socket);
 
-            // Send push notification for important events
+            // Push notification for tool errors — only to session owner's devices
             try {
                 const parsed = JSON.parse(data.message);
                 if (parsed.type === 'tool' && parsed.toolStatus === 'error') {
-                    // Push all devices about errors
-                    const devices = await db.device.findMany({ select: { id: true } });
-                    for (const d of devices) {
-                        sendPushToDevice(d.id, { title: 'Tool Error', body: `${parsed.toolName || 'Tool'} failed` }, db);
+                    const session = await db.session.findUnique({ where: { id: data.sid }, select: { deviceId: true } });
+                    if (session) {
+                        sendPushToDevice(session.deviceId, { title: 'Tool Error', body: `${parsed.toolName || 'Tool'} failed` }, db);
                     }
                 }
             } catch {}
@@ -73,6 +71,11 @@ export function registerSessionHandler(
         metadata: string;
         expectedVersion: number;
     }, callback?: (result: any) => void) => {
+        if (!await canAccessSession(deviceId, data.sid)) {
+            callback?.({ result: 'denied' });
+            return;
+        }
+
         const result = await db.session.updateMany({
             where: {
                 id: data.sid,
@@ -99,6 +102,9 @@ export function registerSessionHandler(
     });
 
     socket.on('session-alive', async (data: { sid: string }) => {
+        // Alive is read-only status — allow if device can access session
+        if (!await canAccessSession(deviceId, data.sid)) return;
+
         await db.session.update({
             where: { id: data.sid },
             data: { lastActiveAt: new Date(), active: true },
@@ -112,6 +118,8 @@ export function registerSessionHandler(
     });
 
     socket.on('session-end', async (data: { sid: string }) => {
+        if (!await canAccessSession(deviceId, data.sid)) return;
+
         await db.session.update({
             where: { id: data.sid },
             data: { active: false, lastActiveAt: new Date() },

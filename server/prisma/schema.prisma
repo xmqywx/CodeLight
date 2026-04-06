@@ -17,6 +17,23 @@ model Device {
 
     sessions   Session[]
     pushTokens PushToken[]
+
+    // Device linking (paired devices can see each other's sessions)
+    linksAsSource DeviceLink[] @relation("LinkSource")
+    linksAsTarget DeviceLink[] @relation("LinkTarget")
+}
+
+/// Links two devices together (bidirectional access).
+/// Created during QR pairing. Both devices can see each other's sessions.
+model DeviceLink {
+    id             String   @id @default(cuid())
+    sourceDeviceId String
+    targetDeviceId String
+    sourceDevice   Device   @relation("LinkSource", fields: [sourceDeviceId], references: [id])
+    targetDevice   Device   @relation("LinkTarget", fields: [targetDeviceId], references: [id])
+    createdAt      DateTime @default(now())
+
+    @@unique([sourceDeviceId, targetDeviceId])
 }
 
 model Session {

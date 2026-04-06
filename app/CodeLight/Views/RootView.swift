@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Root navigation — shows pairing if no servers, otherwise session list.
+/// Root navigation — shows pairing if no servers, server list if multiple, session list if one.
 struct RootView: View {
     @EnvironmentObject var appState: AppState
     @State private var showError = false
@@ -10,6 +10,8 @@ struct RootView: View {
         NavigationStack {
             if appState.servers.isEmpty {
                 PairingView()
+            } else if appState.servers.count > 1 {
+                ServerListView()
             } else if appState.isConnected {
                 SessionListView(server: appState.currentServer ?? appState.servers[0])
             } else {
@@ -18,7 +20,7 @@ struct RootView: View {
                         if let server = appState.currentServer ?? appState.servers.first {
                             await appState.connectTo(server)
                             if !appState.isConnected {
-                                errorMessage = "Could not connect to server"
+                                errorMessage = String(localized: "could_not_connect")
                                 showError = true
                             }
                         }
@@ -39,7 +41,7 @@ struct RootView: View {
                     .foregroundStyle(.orange)
 
                 VStack(spacing: 8) {
-                    Text("Connection Failed")
+                    Text(String(localized: "connection_failed"))
                         .font(.title3)
                         .fontWeight(.semibold)
 
@@ -61,7 +63,7 @@ struct RootView: View {
                             }
                         }
                     } label: {
-                        Label("Try Again", systemImage: "arrow.clockwise")
+                        Label(String(localized: "try_again"), systemImage: "arrow.clockwise")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -71,7 +73,7 @@ struct RootView: View {
                         UserDefaults.standard.removeObject(forKey: "servers")
                         appState.disconnect()
                     } label: {
-                        Text("Reset Connection")
+                        Text(String(localized: "reset_connection"))
                     }
                 }
                 .padding(.horizontal, 40)
@@ -80,7 +82,7 @@ struct RootView: View {
                 ProgressView()
                     .scaleEffect(1.2)
 
-                Text("Connecting to server...")
+                Text(String(localized: "connecting_to_server"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

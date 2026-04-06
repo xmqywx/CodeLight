@@ -9,10 +9,10 @@ struct ConnectionStatusBar: View {
             HStack(spacing: 8) {
                 ProgressView()
                     .scaleEffect(0.7)
-                Text("Reconnecting...")
+                Text(String(localized: "reconnecting"))
                     .font(.caption)
                 Spacer()
-                Button("Retry") {
+                Button(String(localized: "retry")) {
                     Task {
                         if let server = appState.currentServer {
                             await appState.connectTo(server)
