@@ -131,39 +131,20 @@ final class AppState: ObservableObject {
 
         let projectName = sessions.first(where: { $0.id == sessionId })?.metadata?.title ?? "Session"
 
-        // Cancel any pending idle timer for this session
-        idleTimers[sessionId]?.invalidate()
-        idleTimers[sessionId] = nil
-
-        switch type {
-        case "thinking":
-            LiveActivityManager.shared.update(sessionId: sessionId, phase: "thinking", toolName: nil, projectName: projectName, serverName: serverName)
-        case "tool":
+        // Phase messages from CodeIsland — authoritative session state
+        if type == "phase" {
+            let phase = dict["phase"] as? String ?? "idle"
             let toolName = dict["toolName"] as? String
-            let toolStatus = dict["toolStatus"] as? String
-            // Show "running" until status changes; use done state briefly for completed
-            if toolStatus == "success" || toolStatus == "completed" {
-                LiveActivityManager.shared.update(sessionId: sessionId, phase: "ended", toolName: toolName, projectName: projectName, serverName: serverName)
-                scheduleIdle(sessionId: sessionId, projectName: projectName, serverName: serverName, after: 5)
-            } else if toolStatus == "error" || toolStatus == "failed" {
-                LiveActivityManager.shared.update(sessionId: sessionId, phase: "error", toolName: toolName, projectName: projectName, serverName: serverName)
-                scheduleIdle(sessionId: sessionId, projectName: projectName, serverName: serverName, after: 8)
-            } else {
-                LiveActivityManager.shared.update(sessionId: sessionId, phase: "tool_running", toolName: toolName, projectName: projectName, serverName: serverName)
-            }
-        case "assistant":
-            // Don't immediately go idle — give user a moment to see the activity
-            // If no new event comes in 10s, fade to idle
-            scheduleIdle(sessionId: sessionId, projectName: projectName, serverName: serverName, after: 10)
-        case "user":
-            // User just sent a message, expect Claude to start thinking
-            LiveActivityManager.shared.update(sessionId: sessionId, phase: "thinking", toolName: nil, projectName: projectName, serverName: serverName)
-        case "interrupted":
-            LiveActivityManager.shared.update(sessionId: sessionId, phase: "error", toolName: "Interrupted", projectName: projectName, serverName: serverName)
-            scheduleIdle(sessionId: sessionId, projectName: projectName, serverName: serverName, after: 5)
-        default:
-            break
+            LiveActivityManager.shared.update(
+                sessionId: sessionId,
+                phase: phase,
+                toolName: toolName,
+                projectName: projectName,
+                serverName: serverName
+            )
         }
+        // Other message types (user, assistant, tool, thinking) just trigger UI updates,
+        // not Live Activity changes — phase events are the source of truth
     }
 
     private func scheduleIdle(sessionId: String, projectName: String, serverName: String, after seconds: Double) {
