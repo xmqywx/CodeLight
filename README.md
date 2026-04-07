@@ -1,323 +1,325 @@
 <div align="center">
 
-# CodeLight
+<img src="app/CodeLight/Assets.xcassets/AppIcon.appiconset/icon_1024x1024.png" width="160" alt="Code Light icon"/>
 
-**Your Claude Code sessions, on your iPhone.**
+# Code Light
 
-A companion app to [CodeIsland](https://github.com/xmqywx/CodeIsland) — monitor and control your AI coding sessions from anywhere, with Dynamic Island support.
+**Control Claude Code from your iPhone — with native performance, precise terminal targeting, and Dynamic Island.**
 
-This is a passion project built purely out of personal interest. It is **free and open-source** with no commercial intentions whatsoever. I welcome everyone to try it out, report bugs, and contribute code. Let's build something great together!
-
-这是一个纯粹出于个人兴趣开发的项目，**完全免费开源**，没有任何商业目的。欢迎大家试用、提 Bug、贡献代码。一起把它做得更好！
+[English](README.md) · [简体中文](README.zh-CN.md)
 
 [![GitHub stars](https://img.shields.io/github/stars/xmqywx/CodeLight?style=social)](https://github.com/xmqywx/CodeLight/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![iOS](https://img.shields.io/badge/iOS-17%2B-black?style=flat-square&logo=apple)](https://github.com/xmqywx/CodeLight/releases)
+[![Swift](https://img.shields.io/badge/Swift-6-orange?style=flat-square&logo=swift)](https://swift.org)
 
 </div>
 
 ---
 
-## What is CodeLight?
+Code Light is a **native iPhone companion** for Claude Code. It pairs with [CodeIsland](https://github.com/xmqywx/CodeIsland) on your Mac and lets you read, send, and orchestrate your AI coding sessions from anywhere — without touching the keyboard.
 
-**CodeIsland** lives in your Mac's notch. **CodeLight** lives in your pocket.
+This is a **passion project**, purely for personal interest. It is **free and open-source** with no commercial agenda. Bugs, PRs and ideas are welcome.
 
-When you step away from your desk, CodeLight keeps you connected to your Claude Code sessions. See what Claude is doing, read the conversation, and send messages — all from your iPhone.
+---
 
-```
-  Mac (CodeIsland)              Cloud                    iPhone (CodeLight)
-┌──────────────────┐    ┌──────────────────┐    ┌──────────────────────────┐
-│  Claude Code     │    │  CodeLight       │    │  📱 Session list         │
-│  sessions are    │───▶│  Server          │───▶│  💬 Chat view            │
-│  synced in       │    │  (self-hosted)   │    │  🏝️ Dynamic Island      │
-│  real-time       │◀───│                  │◀───│  ⌨️ Send messages        │
-└──────────────────┘    └──────────────────┘    └──────────────────────────┘
-```
+## Why Code Light?
+
+> *"I already have [Happy](https://github.com/slopus/happy) — why would I use this?"*
+
+Short answer: because Code Light is built from the ground up for Claude Code + Mac + cmux, and it leans hard into native iOS. Every design decision picked correctness and feel over cross-platform breadth.
+
+<table>
+<tr><td width="50%">
+
+### 🎯 Pinpoint terminal routing
+Your message lands in the **exact** Claude pane you picked — not "the first Claude window I could find". Code Light walks `ps -Ax` to find the `claude --session-id <uuid>` PID, reads `CMUX_WORKSPACE_ID` / `CMUX_SURFACE_ID` from that process's env, then issues a single `cmux send --workspace <ws> --surface <surf>`. Zero heuristics, zero cwd fuzzy-matching, zero chance of hitting the wrong window.
+
+</td><td width="50%">
+
+### 🏝️ Dynamic Island, done right
+A **single global Live Activity** reflects "whatever Claude is doing right now". Phase transitions (`thinking → tool_running → waiting_approval`) drive updates via APNs. Long assistant replies do not flicker the island. One activity scales to N sessions without hitting iOS Live Activity caps.
+
+</td></tr>
+<tr><td>
+
+### ⚡ Any slash command, any time
+Type `/model opus`, `/cost`, `/usage`, `/clear`, `/compact` — **any** Claude slash command works from the phone. Code Light snapshots the terminal, injects the command, waits for output to settle, diffs the panes, and ships the captured output back as a synthetic `terminal_output` message. You see the response even though slash commands never hit Claude's JSONL.
+
+</td><td>
+
+### 🖥️ One iPhone, N Macs
+Pair your phone with multiple Macs and switch between them with a tap. Each Mac has a **permanent 6-character pairing code** that never rotates — no QR expiry, no "wait for the handshake", just "A7K2M9, go". Each Mac can live on a different backend server entirely. Sessions are strictly isolated per Mac.
+
+</td></tr>
+<tr><td>
+
+### 🚀 Remote session launching
+Tap `+` on your iPhone, pick a **launch preset** (`claude --dangerously-skip-permissions --chrome`), pick a project path — and watch a brand-new cmux workspace spawn on your Mac running that exact command. Presets live on the Mac so you control the allowlist. Recent project paths sync automatically.
+
+</td><td>
+
+### 📷 Real iOS integration
+Native SwiftUI, not a webview. Native Ed25519 via CryptoKit. Native `PhotosPicker` + `UIImagePickerController` for attachments (take photos with the camera, not just pick from library). Native haptics throughout — pair success is a satisfying double-tap, launch is a rigid click, destructive actions warn-buzz before confirmation.
+
+</td></tr>
+</table>
+
+---
+
+## Code Light vs Happy — honest comparison
+
+Both apps let you talk to Claude Code from your phone. Here's where they actually differ:
+
+| Capability | Code Light | Happy |
+|---|:---:|:---:|
+| **Dynamic Island** (real one, not a notification) | ✅ Global phase-driven activity | ❌ |
+| **Multi-Mac pairing** (one iPhone ↔ many Macs) | ✅ Permanent short codes | ❌ One device at a time |
+| **Multi-backend-server** (Macs on different servers) | ✅ Flat list, auto switch | ❌ |
+| **Precise cmux surface targeting** | ✅ UUID → PID → env vars | ❌ No terminal routing |
+| **Any Claude slash command** (`/model`, `/cost`, `/usage`, …) | ✅ Captured output returned | ❌ Only text messages |
+| **Remote session launch** (spawn new cmux pane from phone) | ✅ With Mac-defined presets | ❌ |
+| **Binary-efficient transport** | ✅ Plain text + Socket.io frames | ❌ Base64-wrapped payloads |
+| **Native Swift iOS app** | ✅ SwiftUI + ActivityKit | ❌ React Native / Expo |
+| **Rich markdown rendering** (code, tables, lists, headings) | ✅ Custom SwiftUI renderer | ⚠️ Basic |
+| **Terminal control keys** (Esc, Ctrl+C, Enter) | ✅ Dedicated buttons + swipe | ❌ |
+| **Image attachments** (camera + library) | ✅ Both | ⚠️ Library only |
+| **Permanent pairing code** (type instead of scan) | ✅ 6 chars, never rotates | ❌ QR only |
+| **In-app privacy policy** (Apple-compliant) | ✅ Bilingual | ⚠️ External link |
+| **Full EN/ZH localization** | ✅ Including Info.plist | ⚠️ |
+| **Self-hostable** | ✅ | ✅ |
+| **Open source** | ✅ MIT | ✅ |
+
+### Deep dive — why each of these matters
+
+**1. Terminal routing: no guessing game.**
+Happy has no concept of which cmux pane a message should go to. It can't, because it wraps your CLI (`happy claude` instead of `claude`) and only sees its own stdin/stdout. Code Light does the opposite: CodeIsland on the Mac watches the whole system — it knows every Claude process, every cmux surface, and the mapping between them via `CMUX_WORKSPACE_ID`/`CMUX_SURFACE_ID` env vars. A message targeted at session UUID `abc12345…` lands in exactly that pane. If the process is gone, the message is cleanly dropped instead of hijacking a nearby window.
+
+**2. Binary transport, not base64.**
+Happy's wire format wraps payloads in base64 (`Buffer.from(...).toString('base64')` shows up all over their session routes). Base64 inflates every byte by 33% and requires an extra encode/decode round-trip on both sides. Code Light sends message content as plain UTF-8 strings over Socket.io frames — smaller, faster, less code. Images are uploaded as raw binary via `POST /v1/blobs` and referenced by opaque IDs, never base64-blobbed into messages.
+
+**3. Real Dynamic Island, not a nudge.**
+Code Light runs an ActivityKit Live Activity that reflects Claude's current phase in your iPhone's Dynamic Island — not a push notification that disappears after 3 seconds. The activity updates in place as Claude moves between states, shows the active tool name, and collapses gracefully when all sessions finish. This is only possible because Code Light is a native Swift app. React Native can't do ActivityKit cleanly.
+
+**4. Slash commands round-trip.**
+`/model`, `/cost`, `/usage`, `/clear` etc. don't fire Claude's hook events — they're handled inside the CLI and their output never reaches the JSONL. Most remote clients therefore can't see the response. Code Light's CodeIsland bridge solves this by: snapshot the pane before injection, send the command, poll until output settles, diff the snapshots, ship the new lines back as a synthetic `terminal_output` message. From the phone it looks like any other response.
+
+**5. Multi-Mac really means multi-Mac.**
+Pair your phone with `MacBook Pro` and `Mac mini`, on two different servers if you want. Code Light shows both Macs in one list, grouped by server host, current connection marked green. Tap a Mac on a different server and Code Light reconnects in the background. Every Mac gets its own permanent 6-char `shortCode` (never expires) so pairing additional iPhones is just "type the code". Session access is strictly scoped per `DeviceLink` in the server DB — Mac A's sessions are invisible to an iPhone paired only with Mac B.
+
+**6. Remote launch closes the loop.**
+From the phone, tap `+`, pick a preset like `Claude (skip perms) + Chrome`, pick a project from recent paths, tap Launch — Code Light sends `POST /v1/sessions/launch`, the server emits a `session-launch` socket event scoped to your Mac's `deviceId`, CodeIsland's `LaunchService` spawns `cmux new-workspace --cwd <path> --command "<command>"`, and a fresh cmux workspace pops up running Claude. You never touched your keyboard. Presets are defined on the Mac (so you control the command whitelist), project paths sync from live session cwds.
+
+---
 
 ## Features
 
-### Real-time Session Sync
+### 📱 Real-time session sync
+Every message, tool call, and thinking block streams to your phone as it happens. Lazy-loaded history (50 per page, `before_seq` cursor for scrollback), delta sync on reconnect.
 
-See your Claude Code conversations on your iPhone as they happen. Every message, tool call, and thinking block streams to your phone in real-time.
+### 🏝️ Dynamic Island
+A global Live Activity with six states (thinking, tool running, waiting approval, writing, done, idle). Pixel-cat animation on the Mac matches the phone's state.
 
-### Dynamic Island
+### 💬 Send messages + control keys
+Text input, send with one tap. Dedicated buttons for Escape and Ctrl+C. All messages go straight to the target cmux pane via surface-ID routing.
 
-Your iPhone's Dynamic Island becomes a status indicator for Claude Code:
+### ⚡ Any slash command, with captured output
+`/model`, `/cost`, `/usage`, `/clear`, `/compact`, `/help` — anything. Output is diffed from the terminal pane and shown in your chat view as a `terminal_output` bubble.
 
-| State | What you see |
-|-------|-------------|
-| 🟣 Thinking | Project name + elapsed time |
-| 🔵 Tool running | Tool name (e.g., "Edit main.swift") |
-| 🟠 Needs approval | Tap to open and review |
-| 🟢 Done | Auto-dismisses after 5 seconds |
+### 🖼️ Image attachments
+Attach photos via `PhotosPicker` or capture a new one with the camera. Up to 6 per message, JPEG-compressed locally, uploaded as blobs, pasted into the cmux pane on the Mac via `NSPasteboard` + AppleScript `Cmd+V`.
 
-### Send Messages
+### 🔐 Short-code pairing (and QR)
+Each Mac's CodeIsland menu shows a permanent 6-character code and a QR. On the iPhone, scan the QR or type the code — either way triggers the same `/v1/pairing/code/redeem` endpoint. Multi-Mac: pair more by typing more codes. No accounts, no passwords, no re-pair after reboot.
 
-Type messages to Claude Code from your phone. Switch models (Opus / Sonnet / Haiku) and permission modes without touching your Mac.
+### 🖥️ Multi-Mac, multi-server
+Maintain a flat list of paired Macs across any number of backend servers. Tap to switch active connection. Each Mac carries its own `serverUrl` in local state.
 
-### Self-Hosted & Private
+### 🚀 Remote session launch
+Launch presets are defined on the Mac (name, command, icon, sort order). The phone fetches them, shows them in a sheet, and triggers cmux to create a new workspace with the chosen command and project path.
 
-Run your own CodeLight Server. Your data stays on your infrastructure. The server is **zero-knowledge** — it relays encrypted messages without reading them.
+### 🔔 Granular push notifications
+Per-device toggles: notify on completion, on tool approval wait, on error. APNs-delivered, Live Activity push via HTTP/2.
 
-### QR Code Pairing
+### 🌍 Full bilingual UX
+English and 简体中文 everywhere — UI strings (`Localizable.xcstrings`), permission prompts (`InfoPlist.xcstrings`), and privacy policy. iOS auto-selects based on system language.
 
-No accounts. No passwords. Scan a QR code from CodeIsland to pair your phone with your Mac. Your public key is your identity.
+### 🎛️ Haptic feedback throughout
+Carefully chosen feedback for every class of interaction: selection for tab/picker, light for navigation, medium for buttons, rigid for commits, success for pair/launch, warning before destructive actions, error for failures.
 
-### Multi-Server Support
+---
 
-Connect to multiple CodeLight Servers — monitor sessions across different machines or environments from a single app.
+## Architecture
 
-## How It Works
+```
+  Mac (CodeIsland)              Backend (self-hosted)         iPhone (Code Light)
+┌──────────────────┐         ┌──────────────────────┐      ┌────────────────────────┐
+│ Claude Code      │         │ Fastify + Socket.io  │      │ 📱 Linked Macs list    │
+│ hooks + JSONL    │         │ PostgreSQL + Prisma  │      │ 💬 Chat + markdown     │
+│                  │         │                      │      │ 🏝️ Dynamic Island     │
+│ CodeIsland       │◀───────▶│ DeviceLink graph     │◀────▶│ ⌨️ Send + control keys │
+│  · SessionStore  │ WebSocket│ Zero-knowledge relay │ WSS  │ 📷 Camera + photos     │
+│  · LaunchService │  + HTTPS │ APNs bridge (HTTP/2) │      │ 🚀 Remote launch       │
+│  · PresetStore   │         │                      │      │ 🔔 Push notifications  │
+└──────────────────┘         └──────────────────────┘      └────────────────────────┘
+       cmux bridge                                                  ActivityKit
+       (workspace + surface env vars)                               WidgetKit
+```
 
-CodeLight extends [CodeIsland](https://github.com/xmqywx/CodeIsland) with remote access:
+Strict per-device isolation via `DeviceLink` in the server DB. An iPhone paired only with Mac A cannot see Mac B's sessions, presets, projects, or launch endpoints.
 
-1. **Claude Code** runs on your Mac and emits hook events
-2. **CodeIsland** (Mac notch app) receives hooks and syncs session data to the CodeLight Server
-3. **CodeLight Server** (self-hosted) relays encrypted messages via Socket.io
-4. **CodeLight** (iPhone app) displays sessions and lets you send messages back
-
-All communication is encrypted end-to-end. The server cannot read your messages.
+---
 
 ## Requirements
 
-- [CodeIsland](https://github.com/xmqywx/CodeIsland) installed on your Mac (the bridge between Claude Code and the server)
-- A server to host CodeLight Server (any VPS with Node.js 20+ and PostgreSQL)
-- iPhone running iOS 17+
+- **Mac**: macOS 14+, [CodeIsland](https://github.com/xmqywx/CodeIsland) installed, [cmux](https://cmux.io) for terminal integration
+- **iPhone**: iOS 17+
+- **Server**: any host with Node.js 20+ and PostgreSQL 14+ (or use a public CodeLight Server)
+
+---
 
 ## Quick Start
 
-### 1. Deploy the Server
+### 1. Deploy the server
 
 ```bash
 git clone https://github.com/xmqywx/CodeLight.git
 cd CodeLight/server
 npm install
-
-# Configure
 cp .env.example .env
-# Set DATABASE_URL, MASTER_SECRET (random 64-char hex), and PORT
-
-# Database setup
-npx dotenv -e .env -- prisma migrate dev --name init
-
-# Run
+# Set DATABASE_URL, MASTER_SECRET (64-char hex), PORT
+npx prisma db push
 npm start
 ```
 
-Set up a reverse proxy (Nginx) with SSL for production. See [Server Configuration](#server-configuration) for details.
+Put Nginx in front with TLS. `pm2 start npm --name codelight-server -- start` for production.
 
-### 2. Build the iPhone App
+### 2. Install CodeIsland on your Mac
+
+Follow the [CodeIsland README](https://github.com/xmqywx/CodeIsland). Its Sync module will auto-register this Mac with your server and lazy-allocate a permanent 6-character pairing code.
+
+### 3. Build the iPhone app
 
 ```bash
 cd CodeLight/app
 open CodeLight.xcodeproj
 ```
 
-- Select your development team for both targets
-- Connect your iPhone, press **⌘R**
-- Enter your server URL on first launch
+Select your development team → connect your iPhone → press **⌘R**.
 
-### 3. Connect CodeIsland
+### 4. Pair
 
-CodeIsland's sync module connects your Mac to the server automatically. On the `feature/codelight-sync` branch, CodeIsland will:
+1. On your Mac, open CodeIsland's notch menu → **Pair iPhone**. You'll see a QR and a 6-char code.
+2. On your iPhone, enter your server URL and the code (or scan the QR).
+3. Done. The Mac appears in the "Macs" list. Tap in to see its sessions.
 
-- Authenticate with the server on launch
-- Sync all active Claude Code sessions
-- Relay messages in real-time
+---
 
-## Project Structure
+## Security & privacy
+
+| Layer | How |
+|---|---|
+| **Identity** | Ed25519 keypair (CryptoKit), per-device, never exported |
+| **Storage** | iOS/macOS Keychain |
+| **Transport** | TLS 1.2+ (HTTPS + WSS) |
+| **Pairing** | Per-Mac permanent 6-char shortCode, unique server-side |
+| **Access control** | `DeviceLink` graph — every request checks `getAccessibleDeviceIds()` |
+| **Messages** | E2E-encryption-ready (CryptoKit ChaChaPoly), zero-knowledge relay |
+| **Data collection** | None. No analytics. No telemetry. No third parties |
+
+See [Privacy Policy](PRIVACY.md). The policy is also viewable inside the iPhone app without a network connection (Apple App Store requirement).
+
+---
+
+## Project structure
 
 ```
 CodeLight/
-├── server/              # Relay server (Fastify + Socket.io + PostgreSQL)
-├── app/                 # iPhone app (SwiftUI + ActivityKit)
-│   ├── CodeLight/       # Main app target
-│   └── CodeLightWidget/ # Dynamic Island widget extension
-├── packages/            # Shared Swift Packages
-│   ├── CodeLightProtocol/   # Message types
-│   ├── CodeLightCrypto/     # E2E encryption (CryptoKit)
-│   └── CodeLightSocket/     # Socket.io client wrapper
-└── DESIGN.md            # Full design specification
+├── server/              # Fastify + Socket.io + Prisma backend
+├── app/
+│   ├── CodeLight/       # Main iPhone app (SwiftUI)
+│   └── CodeLightWidget/ # Dynamic Island / Lock Screen widget
+├── packages/
+│   ├── CodeLightProtocol/   # Shared DTOs (Codable)
+│   ├── CodeLightCrypto/     # Ed25519 + ChaChaPoly
+│   └── CodeLightSocket/     # Socket.io Swift wrapper
+└── docs/specs/          # Design docs (multi-mac pairing, etc.)
 ```
 
-## Server Configuration
+---
 
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `MASTER_SECRET` | Yes | Random hex string for JWT signing |
-| `PORT` | No | Server port (default: 3006) |
-| `APNS_KEY_ID` | No | Apple Push Notification key ID |
-| `APNS_TEAM_ID` | No | Apple Developer Team ID |
-| `APNS_KEY` | No | Base64-encoded .p8 private key |
-| `APNS_BUNDLE_ID` | No | App bundle ID for push |
-
-### Nginx Example
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name your-domain.com;
-
-    ssl_certificate /path/to/fullchain.pem;
-    ssl_certificate_key /path/to/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:3006;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 86400s;
-        proxy_buffering off;
-    }
-}
-```
-
-## Security
-
-| Layer | How |
-|-------|-----|
-| **Identity** | Ed25519 public key — no accounts, no passwords |
-| **Transport** | TLS (HTTPS/WSS) |
-| **Messages** | E2E encryption ready (ChaChaPoly via CryptoKit) |
-| **Server** | Zero-knowledge relay — stores only ciphertext |
-| **Keys** | Stored in iOS/macOS Keychain, never exported |
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Server | Node.js, TypeScript, Fastify 5, Socket.io, Prisma, PostgreSQL |
-| iOS App | Swift, SwiftUI, ActivityKit, WidgetKit |
-| Encryption | Apple CryptoKit (ChaChaPoly, Curve25519) |
-| Mac Bridge | [CodeIsland](https://github.com/xmqywx/CodeIsland) + Socket.io Swift |
-
-## Engineering Highlights / 精巧设计
+## Engineering highlights
 
 A handful of non-obvious design decisions that make the system feel solid in practice.
 
-### 1. Rock-solid phone → terminal routing
+### Precise phone → terminal routing
+Two facts the system already knows:
+1. Claude Code is invoked with `--session-id <UUID>` on argv (`ps -Ax`)
+2. cmux exports `CMUX_WORKSPACE_ID` / `CMUX_SURFACE_ID` into every pane (`ps -E -p <pid>`)
 
-Phone messages have to land in the **exact** Claude Code terminal that the user picked — not "the first active Claude window I could find". Naive approaches (workspace title fuzzy-matching, `cwd` substring) fall apart the moment you have multiple sessions in `/Users/ying` or restart a session.
+Pipeline: `ps` → PID → env vars → `cmux send --workspace <ws> --surface <surf>`. No title matching, no cwd heuristics. Orphan processes are cleanly dropped.
 
-The real fix uses two facts the system already knows:
+### Single global Live Activity
+Running one activity per session made the Dynamic Island stretch/collapse as sessions came and went, and hit iOS concurrent-activity caps. Code Light runs **one** global activity whose `ContentState` carries `activeSessionId`, `activeSessions`, `totalSessions`, latest phase. Whoever had the most recent phase change owns the island. Switching context is a state update, not a lifecycle cycle.
 
-1. Claude Code CLI is invoked with `--session-id <UUID>` on argv — visible via `ps -Ax`.
-2. cmux automatically exports `CMUX_WORKSPACE_ID` and `CMUX_SURFACE_ID` into every pane it spawns — readable via `ps -E -p <pid>`.
+### Phase messages as the activity pulse
+Only `type: "phase"` messages re-render the Live Activity. Regular chat messages don't. This keeps APNs push volume under Apple's budget and stops the Dynamic Island from flickering when Claude writes a long reply.
 
-So the server includes the session tag (Claude UUID) in its broadcast, and CodeIsland does:
+### HTTP/2 for Live Activity pushes
+Node's built-in `fetch()` uses HTTP/1.1 and fails against `api.push.apple.com` with an opaque `TypeError: fetch failed`. The server hand-rolls `node:http2` for Live Activity updates. Regular alert pushes use `fetch()` because Apple accepts both there; only Live Activity demands HTTP/2.
 
-```
-ps -Ax | grep "claude --session-id <UUID>"         →  PID
-ps -E  -p <PID>                                    →  CMUX_WORKSPACE_ID, CMUX_SURFACE_ID
-cmux send --workspace <ws> --surface <surf> -- …   →  exact pane, zero guesses
-```
+### 60-second echo dedup ring
+Phone sends → server broadcasts → CodeIsland pastes → Claude writes to JSONL → file watcher sees it → CodeIsland re-uploads → phone gets its own message back. Fixed with a 60 s TTL `(claudeUuid, text)` ring on the Mac: MessageRelay consumes a matching entry before uploading and skips. No server changes, no localId negotiation.
 
-No title matching, no cwd heuristics. If the PID doesn't exist the message is cleanly dropped — orphan server sessions never silently hijack the wrong window.
+### Ephemeral blob store
+Images are transit cargo (the real history lives in Claude's JSONL once pasted), so the blob store is deliberately **memory + disk, never DB**. Three-tier cleanup: `blob-consumed` socket ack deletes on pickup, 10-minute TTL sweeper catches the rest, server startup purges `blobs/` on every boot. No Prisma model, no orphan rows.
 
-手机发来的消息必须精确落到用户选中的那个 Claude 终端。传统做法（workspace 标题模糊匹配、`cwd` 子串）在多 session、同一目录、session 重启之后全部崩。真正靠谱的路径是：Claude CLI 的 `--session-id <UUID>` 就写在 argv 里（`ps -Ax` 可见），cmux 又自动把 `CMUX_WORKSPACE_ID` / `CMUX_SURFACE_ID` 注入每个 pane 的环境变量（`ps -E -p <pid>` 可读）。两个事实一拼接，就能从"session UUID"零猜测地定位到"cmux 的哪个 surface"，找不到就直接 drop。
+### Image paste via NSPasteboard + AppleScript
+cmux has no "paste image" command. But Cmd+V with an image on the clipboard works. So: download blob → `cmux focus-panel` → AppleScript activate cmux and poll `NSWorkspace.frontmostApplication` until true → write image to `NSPasteboard` in NSImage + `public.jpeg` + `.tiff` for max terminal compatibility → `System Events keystroke "v" using {command down}` (with CGEvent fallback) → `cmux send` for trailing text. Needs Accessibility permission, and the permission is tracked by signed path so CodeIsland auto-installs itself to `/Applications/Code Island.app` to survive rebuilds.
 
-### 2. One global Live Activity, not one per session
+### Permanent shortCode on Device.id
+shortCode is a column on `Device`, not `PairingRequest`. Lazy-allocated on first `POST /v1/devices/me {kind:"mac"}`, never rotated. Restarting CodeIsland does not change your pairing code. Multiple iPhones can pair with the same Mac by redeeming the same code.
 
-Starting a Live Activity per Claude session made the iPhone Dynamic Island stretch and collapse awkwardly as sessions came and went. Worse, iOS caps concurrent Live Activities hard.
+### Per-device ID round-trip for presets
+Launch presets use **Mac-generated UUIDs** as primary keys on the server, not server cuids. The Mac sends its local UUIDs on upload; the server stores them as-is. When the phone later sends a `session-launch` event with `presetId`, the Mac's local `PresetStore` can look it up immediately. Avoided a subtle "unknown presetId" bug during early phase 4 testing.
 
-Instead CodeLight runs **a single global activity** that represents "whatever Claude is doing right now, anywhere". The activity's `ContentState` carries `activeSessionId`, `activeSessions`, `totalSessions`, and the latest phase — and whichever session had the most recent phase change wins the Dynamic Island. Switching context is just a state update, not a create/destroy cycle.
-
-早期的每 session 一个 Live Activity 会让灵动岛频繁伸缩，而且 iOS 对并发 Live Activity 数量有上限。改成**一个全局 Activity**，ContentState 里记当前活跃 session、总数和最新 phase，谁最近有事件发生就把灵动岛让给谁，切换只是一次 state update。
-
-### 3. Phase messages as the Live Activity pulse
-
-CodeLight's Live Activity only updates on `type: "phase"` messages — a tiny heartbeat CodeIsland emits whenever Claude transitions (`thinking → tool_running → waiting_approval → …`). Regular chat messages don't trigger re-renders. This keeps APNs push volume low enough to stay under Apple's budget and the Dynamic Island stops flickering when Claude writes a long assistant reply.
-
-灵动岛只响应 `type: "phase"` 这种心跳消息（由 CodeIsland 在状态迁移时发出），普通对话消息不触发更新。这样既能控住 APNs 推送频率（苹果有预算上限），又避免 Claude 输出长回答时灵动岛疯狂抖动。
-
-### 4. HTTP/2 is mandatory for APNs Live Activity pushes
-
-Node's built-in `fetch()` uses HTTP/1.1 and **fails** against `api.push.apple.com` with `TypeError: fetch failed` — no clean error, just a dead request. The server hand-rolls HTTP/2 requests via `node:http2` for Live Activity updates. Regular APNs alerts keep using `fetch()` because Apple accepts both for that path; only Live Activity demands HTTP/2.
-
-Node 自带的 `fetch()` 走 HTTP/1.1，打 `api.push.apple.com` 会直接 `TypeError: fetch failed`，连个清晰报错都没有。服务器用 `node:http2` 手搓 HTTP/2 请求处理 Live Activity 推送。普通 APNs alert 还能用 `fetch()`，只有 Live Activity 这条路强制 HTTP/2。
-
-### 5. Phone-injection dedup ring
-
-Round-trip: phone sends text → server → CodeIsland pastes into cmux → Claude writes it to its JSONL → CodeIsland's file watcher sees a "new user message" → ships it back to the server → phone gets **a second copy** of what it just sent.
-
-CodeIsland keeps a 60-second TTL ring `(claudeUuid, text) → injectedAt`. When MessageRelay is about to ship a user message to the server, it consumes a matching entry and skips. Echo loop broken, no localId negotiation, no server changes.
-
-手机发 → 服务器 → CodeIsland 粘贴到 cmux → Claude 写进 JSONL → CodeIsland 监听到"新用户消息" → 回传服务器 → 手机收到自己刚发的消息的副本。解法是 CodeIsland 保留一个 60 秒 TTL 的 `(claudeUuid, text)` 去重环，MessageRelay 在上传前消费一次匹配项直接跳过。不需要改服务器，不需要协商 localId。
-
-### 6. Ephemeral blob store for image uploads
-
-Images from the phone are transit cargo, not chat history — the real source of truth is Claude's own JSONL once the image is pasted. So the server's blob store is **deliberately in-memory + disk**, never in the DB:
-
-- `POST /v1/blobs` writes to `./blobs/<id>.bin`, metadata lives in a `Map`
-- Three-tier cleanup: `blob-consumed` socket ack deletes on first successful CodeIsland pickup; a 10-minute TTL sweeper catches the rest; server startup purges the entire `blobs/` directory on every boot
-- No Prisma model, no migrations, no orphan rows — a server restart is a clean slate by design
-
-手机发过来的图片只是**过境数据**，真正的历史在 Claude 自己的 JSONL 里（粘贴后被 Claude 记录）。所以服务器的 blob 存储刻意做成**内存 Map + 磁盘文件**，完全不进数据库：上传即落盘，`blob-consumed` socket ack 一到就删，10 分钟 TTL 兜底，启动时整个 `blobs/` 目录清空。没有 prisma 模型、没有迁移、没有孤儿行——每次重启都是干净状态。
-
-### 7. Image paste without a paste API
-
-cmux has no "paste image" command. Its CLI only speaks text and key events. But manually pressing Cmd+V in a cmux terminal with an image on the clipboard makes Claude see `[Image #N]` — so the paste pipeline exists, it just needs the macOS UI layer.
-
-CodeIsland's pipeline:
-
-1. Download the blob over HTTPS
-2. `cmux focus-panel --panel <surfaceId> --workspace <wsId>` — switch cmux's internal view
-3. AppleScript `tell application id "com.cmuxterm.app" to activate` + poll `NSWorkspace.frontmostApplication` until cmux is truly frontmost (up to 1 s)
-4. Write the image to `NSPasteboard` in NSImage, `public.jpeg`, and `.tiff` formats all at once for max terminal compatibility
-5. AppleScript `tell System Events to keystroke "v" using {command down}` (with a `CGEvent` fallback)
-6. `cmux send` for trailing text + Enter
-
-All of this requires **Accessibility permission**, and the permission is tracked by the app's signed path — which means a Debug build in DerivedData is a *different* app from the one in `/Applications`. CodeIsland ships itself to `/Applications/Code Island.app` so the Accessibility grant actually sticks across rebuilds.
-
-cmux 没有粘图 API，但手动 Cmd+V 能让 Claude 认到 `[Image #N]`，所以链路是存在的，只差 macOS UI 层的事件。CodeIsland 的流程：下载 blob → `cmux focus-panel` 切内部视图 → AppleScript `activate` 并轮询 `NSWorkspace.frontmostApplication` 确认 cmux 真的上前台 → `NSPasteboard` 同时写 NSImage / `public.jpeg` / `.tiff` 三种格式最大化兼容 → `System Events` keystroke `v using command down`（`CGEvent` fallback）→ 再 `cmux send` 补正文和回车。这一切需要辅助功能权限，而权限是按签名路径记录的——DerivedData 里的 Debug 和 `/Applications` 里的同名 app 在系统看来是**两个 app**。所以 CodeIsland 每次 rebuild 都会自安装到 `/Applications/Code Island.app`，权限才不会每次都掉。
-
-### 8. Last-message time, not heartbeat time
-
-Session rows used to show `lastActiveAt` — but that field gets bumped every 2 seconds by the `session-alive` heartbeat, so every session in the list showed the same "just now" forever and the timer was meaningless.
-
-The phone now tracks `lastMessageTimeBySession` locally, advancing it only when a real `user`/`assistant` message arrives (phase updates and heartbeats don't count). If nothing has arrived yet in this app session, no time is shown at all — less information is more honest than fake information.
-
-会话列表里的时间原本走 `lastActiveAt`，但它每 2 秒被 `session-alive` 心跳刷新，导致所有 session 显示一样的"刚刚"——一点信息量都没有。现在手机本地维护 `lastMessageTimeBySession`，只有真正的 `user`/`assistant` 消息到达才推进时间（phase 更新和心跳不算），没收到任何消息的会话干脆不显示时间。宁可缺省，也不骗人。
+---
 
 ## Roadmap
 
-- [ ] QR code camera scanning (currently manual URL entry)
-- [ ] Permission approval from phone
-- [ ] Rich message rendering (markdown, code blocks)
-- [ ] APNs push notifications for background alerts
-- [ ] Tool result visualization
+- [ ] Permission approval from phone (tap to allow tool use)
+- [ ] Tool result visualization (file diff, terminal output)
 - [ ] Chat history search
+- [ ] iPad layout
+- [ ] Android port (community-driven — the protocol is cross-platform)
 
-## Related Projects
+---
 
-| Project | Description |
-|---------|-------------|
-| [CodeIsland](https://github.com/xmqywx/CodeIsland) | macOS notch companion for Claude Code — **required** for CodeLight to work |
-| [cmux](https://cmux.io) | Modern terminal multiplexer — recommended for multi-session management |
+## Related projects
+
+| Project | Role |
+|---|---|
+| [CodeIsland](https://github.com/xmqywx/CodeIsland) | **Required** — the Mac-side bridge |
+| [cmux](https://cmux.io) | **Recommended** — the terminal multiplexer that makes precise routing possible |
+
+---
 
 ## Contributing
 
-Contributions are welcome!
+Bug reports, PRs, and feature ideas all welcome.
 
-1. **Report bugs** — [Open an issue](https://github.com/xmqywx/CodeLight/issues)
+1. **Report a bug** — [Open an issue](https://github.com/xmqywx/CodeLight/issues)
 2. **Submit a PR** — Fork, branch, code, PR
-3. **Suggest features** — Open an issue tagged `enhancement`
+3. **Propose a feature** — Open an issue tagged `enhancement`
 
-## 参与贡献
+---
 
-欢迎参与！
+## Contact
 
-1. **提交 Bug** — 在 [Issues](https://github.com/xmqywx/CodeLight/issues) 中描述问题
-2. **提交 PR** — Fork 本仓库，新建分支，修改后提交 Pull Request
-3. **建议功能** — 在 Issues 中提出
+- **Email** — xmqywx@gmail.com
+- **Issues** — https://github.com/xmqywx/CodeLight/issues
 
-## Contact / 联系方式
-
-- **Email**: xmqywx@gmail.com
+---
 
 ## License
 
