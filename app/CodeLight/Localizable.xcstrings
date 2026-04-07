@@ -166,6 +166,22 @@
         }
       }
     },
+    "choose_from_library": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose from Library"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从相册选择"
+          }
+        }
+      }
+    },
     "clean_now": {
       "localizations": {
         "en": {
@@ -178,6 +194,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "立即清理"
+          }
+        }
+      }
+    },
+    "cleaning_ellipsis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaning…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在清理…"
           }
         }
       }
@@ -198,6 +230,22 @@
         }
       }
     },
+    "cleanup_footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark sessions with no activity in the last 15 minutes as inactive on the server."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将服务器上最近 15 分钟没有活动的会话标记为非活跃。"
+          }
+        }
+      }
+    },
     "cleanup_inactive_sessions": {
       "localizations": {
         "en": {
@@ -210,6 +258,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "清理非活跃会话"
+          }
+        }
+      }
+    },
+    "cleanup_no_sessions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No inactive sessions to clean"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有需要清理的会话"
           }
         }
       }
@@ -969,6 +1033,22 @@
         }
       }
     },
+    "no_server_to_connect": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No server configured"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未配置服务器"
+          }
+        }
+      }
+    },
     "no_servers": {
       "localizations": {
         "en": {
@@ -1065,20 +1145,122 @@
         }
       }
     },
-    "notify_on_completion": {
+    "notify_footer": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Notify when Claude finishes"
+            "value": "Notifications are sent to any iPhone paired with the Mac that owns the session."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude 完成时通知"
+            "value": "通知会发送到与拥有该会话的 Mac 配对的所有 iPhone。"
           }
         }
+      }
+    },
+    "send_status_sending": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sending…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "发送中…" } }
+      }
+    },
+    "send_status_delivered": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delivered to Mac" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已送达 Mac" } }
+      }
+    },
+    "send_status_thinking": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Claude is thinking…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Claude 正在思考…" } }
+      }
+    },
+    "archive": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Archive" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "归档" } }
+      }
+    },
+    "tab_active": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Active" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "活跃" } }
+      }
+    },
+    "tab_recent": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Recent" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "最近" } }
+      }
+    },
+    "tab_archived": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Archived" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "归档" } }
+      }
+    },
+    "unarchive": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unarchive" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "取消归档" } }
+      }
+    },
+    "archived": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Archived" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已归档" } }
+      }
+    },
+    "no_archived_sessions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No archived sessions" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有已归档的会话" } }
+      }
+    },
+    "archive_hint": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Swipe a session left to archive it. Archived sessions live here so you only see what you care about in the main list." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在主列表里左滑会话即可归档。归档后的会话集中在这里，主列表只显示你关注的会话。" } }
+      }
+    },
+    "rename": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Rename" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重命名" } }
+      }
+    },
+    "rename_session": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Session Name" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "会话名称" } }
+      }
+    },
+    "session_name_placeholder": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Custom name" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "自定义名称" } }
+      }
+    },
+    "rename_footer": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Stored locally on this iPhone. Other devices won't see your custom name." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存在本机。其他设备看不到你的自定义名称。" } }
+      }
+    },
+    "reset_to_default": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reset to default name" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "恢复默认名称" } }
+      }
+    },
+    "save": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Save" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "保存" } }
       }
     },
     "notify_on_approval": {
@@ -1097,6 +1279,22 @@
         }
       }
     },
+    "notify_on_completion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notify when Claude finishes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 完成时通知"
+          }
+        }
+      }
+    },
     "notify_on_error": {
       "localizations": {
         "en": {
@@ -1109,22 +1307,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "工具出错时通知"
-          }
-        }
-      }
-    },
-    "notify_footer": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications are sent to any iPhone paired with the Mac that owns the session."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通知会发送到与拥有该会话的 Mac 配对的所有 iPhone。"
           }
         }
       }
@@ -1305,6 +1487,246 @@
         }
       }
     },
+    "privacy_camera": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera Usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机使用"
+          }
+        }
+      }
+    },
+    "privacy_camera_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight uses your device's camera solely for scanning QR codes during the device pairing process. No images or video are stored or transmitted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight 仅在设备配对流程中使用相机扫描二维码，不保存或传输任何图片或视频。"
+          }
+        }
+      }
+    },
+    "privacy_contact": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contact"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联系方式"
+          }
+        }
+      }
+    },
+    "privacy_contact_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions about this privacy policy can be sent to xmqywx@gmail.com or filed on GitHub Issues at https://github.com/xmqywx/CodeLight/issues."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于隐私政策的问题可发送至 xmqywx@gmail.com，或在 GitHub Issues 提交：https://github.com/xmqywx/CodeLight/issues。"
+          }
+        }
+      }
+    },
+    "privacy_data_collection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Collection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据收集"
+          }
+        }
+      }
+    },
+    "privacy_data_collection_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight does not collect, store, or transmit any personal data to third parties. No analytics, no tracking, no advertising."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight 不会收集、存储或向任何第三方传输个人数据。没有统计分析，没有跟踪，没有广告。"
+          }
+        }
+      }
+    },
+    "privacy_data_storage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data Storage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据存储"
+          }
+        }
+      }
+    },
+    "privacy_data_storage_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session data is stored on the CodeLight Server you connect to (self-hosted or public). You control where your data lives. Authentication keys are stored securely in your device's Keychain. Server URLs and connection settings are stored locally on your device."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话数据存储在你连接的 CodeLight 服务器上（自托管或公共）。你掌控数据的去向。认证密钥安全地保存在设备的钥匙串中。服务器地址和连接设置只保存在本机。"
+          }
+        }
+      }
+    },
+    "privacy_encryption": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End-to-End Encryption"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端到端加密"
+          }
+        }
+      }
+    },
+    "privacy_encryption_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messages between your Mac and iPhone are designed to be end-to-end encrypted. The CodeLight Server acts as a zero-knowledge relay — it stores encrypted data without the ability to read it."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Mac 和 iPhone 之间的消息采用端到端加密设计。CodeLight 服务器作为零知识中继——它存储加密数据但无法读取内容。"
+          }
+        }
+      }
+    },
+    "privacy_last_updated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last updated: April 7, 2026"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最后更新：2026 年 4 月 7 日"
+          }
+        }
+      }
+    },
+    "privacy_open_source": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Source"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开源"
+          }
+        }
+      }
+    },
+    "privacy_open_source_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight is open source. You can review the complete source code at:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight 是开源项目，你可以在下面的地址查看完整源代码："
+          }
+        }
+      }
+    },
+    "privacy_overview": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "概述"
+          }
+        }
+      }
+    },
+    "privacy_overview_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight is an open-source application that syncs Claude Code sessions between your Mac and iPhone. Your privacy is important to us."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight 是一款开源应用，用于在你的 Mac 与 iPhone 之间同步 Claude Code 会话。我们重视你的隐私。"
+          }
+        }
+      }
+    },
     "privacy_policy": {
       "localizations": {
         "en": {
@@ -1317,6 +1739,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "隐私政策"
+          }
+        }
+      }
+    },
+    "privacy_push": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push Notifications"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推送通知"
+          }
+        }
+      }
+    },
+    "privacy_push_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If enabled, push notifications are delivered via Apple Push Notification Service (APNs). Device tokens are stored on the CodeLight Server you are connected to and are not shared with anyone else."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果启用，推送通知通过 Apple 推送通知服务（APNs）发送。设备令牌保存在你连接的 CodeLight 服务器上，不会与其他任何人共享。"
+          }
+        }
+      }
+    },
+    "privacy_third_party": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-Party Services"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第三方服务"
+          }
+        }
+      }
+    },
+    "privacy_third_party_body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight does not use any analytics, tracking, or advertising services. No data is shared with third parties."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodeLight 不使用任何统计分析、跟踪或广告服务。不会向任何第三方共享数据。"
           }
         }
       }
@@ -1401,6 +1887,54 @@
         }
       }
     },
+    "reconnect_failed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新连接失败"
+          }
+        }
+      }
+    },
+    "reconnect_footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect and reconnect to the current server. Use this if sync feels out of date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "断开并重新连接当前服务器。如果同步感觉不同步时可用此操作。"
+          }
+        }
+      }
+    },
+    "reconnected_success": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnected"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已重新连接"
+          }
+        }
+      }
+    },
     "reconnecting": {
       "localizations": {
         "en": {
@@ -1413,6 +1947,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "重新连接中..."
+          }
+        }
+      }
+    },
+    "reconnecting_ellipsis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重新连接…"
           }
         }
       }
@@ -1494,6 +2044,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "重置连接"
+          }
+        }
+      }
+    },
+    "reset_footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove all paired Macs from this device and clear the saved server URL. You will need to pair again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从此设备删除所有已配对的 Mac 并清除已保存的服务器地址，需要重新配对。"
           }
         }
       }
@@ -1674,7 +2240,22 @@
         }
       }
     },
-    "security": {},
+    "security": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Security"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全"
+          }
+        }
+      }
+    },
     "server": {
       "localizations": {
         "en": {
@@ -1884,6 +2465,22 @@
         }
       }
     },
+    "take_photo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take Photo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍照"
+          }
+        }
+      }
+    },
     "tap_plus_to_launch": {
       "localizations": {
         "en": {
@@ -1964,8 +2561,38 @@
         }
       }
     },
-    "token_expiry": {},
-    "token_expiry_footer": {},
+    "token_expiry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token Expiry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "令牌有效期"
+          }
+        }
+      }
+    },
+    "token_expiry_footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controls how long your authentication token remains valid before you need to re-authenticate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "控制认证令牌多久失效并需要重新验证。"
+          }
+        }
+      }
+    },
     "try_again": {
       "localizations": {
         "en": {

@@ -1,3 +1,6 @@
 .build/
 xcuserdata/
 .swiftpm/
+
+# Asset backups
+*.original.png

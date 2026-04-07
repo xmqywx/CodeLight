@@ -11,6 +11,7 @@ struct CodeLightApp: App {
             RootView()
                 .environmentObject(appState)
                 .task {
+                    Haptics.prepareAll()
                     await PushManager.shared.requestPermission()
                 }
         }

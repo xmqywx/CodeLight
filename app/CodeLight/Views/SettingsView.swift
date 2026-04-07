@@ -8,8 +8,18 @@ struct SettingsView: View {
     @AppStorage("tokenExpiryDays") private var tokenExpiryDays: Int = 30
     @State private var selectedLanguage: String = UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first ?? ""
     @State private var showCleanupAlert = false
-    @State private var cleanupResult: String? = nil
     @State private var showResetConfirm = false
+    @State private var reconnectStatus: ActionStatus = .idle
+    @State private var cleanupStatus: ActionStatus = .idle
+    @State private var showPrivacy = false
+
+    /// Transient status shown next to an action button.
+    enum ActionStatus: Equatable {
+        case idle
+        case running
+        case success(String)
+        case failure(String)
+    }
     @State private var notificationPrefs = SocketClient.NotificationPrefs(
         notifyOnCompletion: false,
         notifyOnApproval: false,
@@ -29,27 +39,6 @@ struct SettingsView: View {
 
     var body: some View {
         List {
-            // Connection status (current active socket)
-            Section {
-                HStack {
-                    Label(String(localized: "current_server"), systemImage: "server.rack")
-                    Spacer()
-                    Text(appState.currentServerUrl.flatMap { URL(string: $0)?.host } ?? "—")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                }
-
-                HStack {
-                    Label(String(localized: "status"), systemImage: "circle.fill")
-                        .foregroundStyle(appState.isConnected ? .green : .red)
-                    Spacer()
-                    Text(appState.isConnected ? String(localized: "connected") : String(localized: "disconnected"))
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text(String(localized: "connection"))
-            }
-
             // All known servers (one row per unique server URL)
             Section {
                 if appState.knownServerUrls.isEmpty {
@@ -60,6 +49,7 @@ struct SettingsView: View {
                     ForEach(appState.knownServerUrls, id: \.self) { url in
                         let macCount = appState.linkedMacs.filter { $0.serverUrl == url }.count
                         Button {
+                            Haptics.selection()
                             Task { await appState.switchServerIfNeeded(to: url) }
                         } label: {
                             HStack {
@@ -136,21 +126,42 @@ struct SettingsView: View {
                 Text(String(localized: "token_expiry_footer"))
             }
 
-            // Actions
+            // Reconnect
             Section {
                 Button {
-                    Task { await appState.connect() }
+                    Task { await doReconnect() }
                 } label: {
-                    Label(String(localized: "reconnect"), systemImage: "arrow.clockwise")
+                    HStack {
+                        Label(String(localized: "reconnect"), systemImage: "arrow.clockwise")
+                        Spacer()
+                        statusView(reconnectStatus)
+                    }
                 }
+                .disabled(reconnectStatus == .running)
+            } footer: {
+                Text(String(localized: "reconnect_footer"))
+            }
 
+            // Cleanup
+            Section {
                 Button {
                     showCleanupAlert = true
                 } label: {
-                    Label(String(localized: "cleanup_inactive_sessions"), systemImage: "trash.circle")
+                    HStack {
+                        Label(String(localized: "cleanup_inactive_sessions"), systemImage: "trash.circle")
+                        Spacer()
+                        statusView(cleanupStatus)
+                    }
                 }
+                .disabled(cleanupStatus == .running)
+            } footer: {
+                Text(String(localized: "cleanup_footer"))
+            }
 
+            // Reset (destructive)
+            Section {
                 Button(role: .destructive) {
+                    Haptics.warning()
                     showResetConfirm = true
                 } label: {
                     Label(String(localized: "reset_backend"), systemImage: "wifi.slash")
@@ -158,10 +169,7 @@ struct SettingsView: View {
             } header: {
                 Text(String(localized: "actions"))
             } footer: {
-                if let cleanupResult {
-                    Text(cleanupResult)
-                        .foregroundStyle(.green)
-                }
+                Text(String(localized: "reset_footer"))
             }
 
             // Language
@@ -264,8 +272,17 @@ struct SettingsView: View {
                     Label(String(localized: "codeisland_mac_companion"), systemImage: "desktopcomputer")
                 }
 
-                Link(destination: URL(string: "https://github.com/xmqywx/CodeLight/blob/main/PRIVACY.md")!) {
-                    Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
+                Button {
+                    showPrivacy = true
+                } label: {
+                    HStack {
+                        Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             } header: {
                 Text(String(localized: "about"))
@@ -293,15 +310,78 @@ struct SettingsView: View {
         .alert(String(localized: "reset_backend"), isPresented: $showResetConfirm) {
             Button(String(localized: "cancel"), role: .cancel) {}
             Button(String(localized: "reset"), role: .destructive) {
+                Haptics.rigid()
                 appState.reset()
                 dismiss()
             }
         } message: {
             Text(String(localized: "reset_backend_confirm"))
         }
+        .sheet(isPresented: $showPrivacy) {
+            PrivacyPolicyView()
+        }
         .task {
             await loadPrefs()
         }
+    }
+
+    // MARK: - Action status UI
+
+    @ViewBuilder
+    private func statusView(_ status: ActionStatus) -> some View {
+        Group {
+            switch status {
+            case .idle:
+                EmptyView()
+            case .running:
+                ProgressView()
+                    .controlSize(.small)
+            case .success(let msg):
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                }
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            case .failure(let msg):
+                HStack(spacing: 4) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: status)
+    }
+
+    // MARK: - Actions
+
+    private func doReconnect() async {
+        let target = appState.currentServerUrl ?? appState.lastUsedServerUrl ?? appState.linkedMacs.first?.serverUrl
+        guard let url = target else {
+            Haptics.error()
+            reconnectStatus = .failure(String(localized: "no_server_to_connect"))
+            return
+        }
+        Haptics.medium()
+        reconnectStatus = .running
+        await appState.connectToServer(url: url)
+        if appState.isConnected {
+            Haptics.success()
+            reconnectStatus = .success(String(localized: "reconnected_success"))
+        } else {
+            Haptics.error()
+            reconnectStatus = .failure(String(localized: "reconnect_failed"))
+        }
+        // Auto-clear the status badge after a moment
+        try? await Task.sleep(nanoseconds: 2_500_000_000)
+        if case .success = reconnectStatus { reconnectStatus = .idle }
+        if case .failure = reconnectStatus { reconnectStatus = .idle }
     }
 
     // MARK: - Notification Prefs
@@ -326,8 +406,13 @@ struct SettingsView: View {
     private func runCleanup() async {
         guard let serverUrl = appState.currentServerUrl,
               let token = KeyManager(serviceName: "com.codelight.app").loadToken(forServer: serverUrl) else {
+            Haptics.error()
+            cleanupStatus = .failure(String(localized: "not_connected"))
             return
         }
+
+        Haptics.medium()
+        cleanupStatus = .running
 
         let url = URL(string: "\(serverUrl)/v1/sessions/cleanup")!
         var request = URLRequest(url: url)
@@ -340,15 +425,28 @@ struct SettingsView: View {
             let (data, _) = try await URLSession.shared.data(for: request)
             if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let cleaned = result["cleaned"] as? Int {
-                cleanupResult = String(format: String(localized: "cleanup_result"), cleaned)
-
+                if cleaned == 0 {
+                    cleanupStatus = .success(String(localized: "cleanup_no_sessions"))
+                } else {
+                    cleanupStatus = .success(String(format: String(localized: "cleanup_result"), cleaned))
+                }
+                Haptics.success()
                 if let socket = appState.socket {
                     appState.sessions = (try? await socket.fetchSessions()) ?? []
                 }
+            } else {
+                Haptics.error()
+                cleanupStatus = .failure("Bad response")
             }
         } catch {
-            cleanupResult = "Error: \(error.localizedDescription)"
+            Haptics.error()
+            cleanupStatus = .failure(error.localizedDescription)
         }
+
+        // Auto-clear the status after a short delay
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        if case .success = cleanupStatus { cleanupStatus = .idle }
+        if case .failure = cleanupStatus { cleanupStatus = .idle }
     }
 
     private func expiryLabel(_ days: Int) -> String {
