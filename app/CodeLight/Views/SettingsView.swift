@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CodeLightCrypto
 
 /// Settings — backend info, paired Macs management, security, language, about.
@@ -6,8 +7,6 @@ struct SettingsView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @AppStorage("tokenExpiryDays") private var tokenExpiryDays: Int = 30
-    @State private var selectedLanguage: String = SettingsView.resolveStoredLanguage()
-    @State private var showLanguageRestartAlert = false
     @State private var showCleanupAlert = false
     @State private var showResetConfirm = false
     @State private var reconnectStatus: ActionStatus = .idle
@@ -30,32 +29,6 @@ struct SettingsView: View {
 
     private let expiryOptions = [7, 14, 30, 90, 180, 365]
 
-    private func applyLanguage(_ lang: String) {
-        if lang.isEmpty {
-            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-        } else {
-            UserDefaults.standard.set([lang], forKey: "AppleLanguages")
-        }
-        UserDefaults.standard.synchronize()
-        // iOS reads AppleLanguages once at launch via Bundle.main, so the
-        // running app's strings won't update live. Tell the user explicitly
-        // — otherwise picking "English" looks like a no-op and they assume
-        // it's broken.
-        showLanguageRestartAlert = true
-    }
-
-    /// Read the stored AppleLanguages preference and resolve it to one of the
-    /// picker's tag values ("", "en", "zh-Hans"). The system stores values
-    /// like "en-CN" or "zh-Hans-US" with a region suffix that doesn't match
-    /// our coarse tags, so we prefix-match.
-    private static func resolveStoredLanguage() -> String {
-        guard let raw = UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first else {
-            return ""
-        }
-        if raw.hasPrefix("zh") { return "zh-Hans" }
-        if raw.hasPrefix("en") { return "en" }
-        return ""
-    }
 
     var body: some View {
         List {
@@ -192,20 +165,35 @@ struct SettingsView: View {
                 Text(String(localized: "reset_footer"))
             }
 
-            // Language
+            // Language — deep-link to iOS Settings → CodeLight → Language.
+            // We deliberately do NOT have an in-app picker because:
+            //   1. iOS reads AppleLanguages once at launch via Bundle.main, so
+            //      live switching doesn't relocalize the running view tree.
+            //   2. Calling exit(0) to force a relaunch is explicitly discouraged
+            //      by Apple HIG ("People interpret this as a crash") and risks
+            //      App Review rejection.
+            // The system Settings page handles the entire flow natively: user
+            // picks a language, iOS relaunches the app cleanly. Zero review
+            // risk, zero custom code, more native UX.
             Section {
-                Picker(selection: $selectedLanguage) {
-                    Text("Auto (System)").tag("")
-                    Text("English").tag("en")
-                    Text("简体中文").tag("zh-Hans")
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
                 } label: {
-                    Label(String(localized: "language"), systemImage: "globe")
-                }
-                .onChange(of: selectedLanguage) {
-                    applyLanguage(selectedLanguage)
+                    HStack {
+                        Label(String(localized: "language"), systemImage: "globe")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             } header: {
                 Text(String(localized: "language"))
+            } footer: {
+                Text(String(localized: "language_settings_footer"))
             }
 
             // Notifications
@@ -336,17 +324,6 @@ struct SettingsView: View {
             }
         } message: {
             Text(String(localized: "reset_backend_confirm"))
-        }
-        .alert(String(localized: "language_change_title"), isPresented: $showLanguageRestartAlert) {
-            Button(String(localized: "ok"), role: .cancel) {}
-            Button(String(localized: "quit_now"), role: .destructive) {
-                // iOS has no formal relaunch API; calling exit() forces a
-                // clean shutdown. Next time the user taps the icon the app
-                // launches with the new AppleLanguages preference.
-                exit(0)
-            }
-        } message: {
-            Text(String(localized: "language_change_message"))
         }
         .sheet(isPresented: $showPrivacy) {
             PrivacyPolicyView()
