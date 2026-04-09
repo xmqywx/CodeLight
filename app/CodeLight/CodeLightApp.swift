@@ -17,9 +17,15 @@ struct CodeLightApp: App {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // Delay briefly to ensure app is fully visible before starting Live Activities
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 800_000_000) // 0.8s
+                    // Reconnect socket if it dropped while in background
+                    if !appState.isConnected {
+                        await appState.connect()
+                    }
+                    // Always refresh sessions to pick up messages missed while backgrounded
+                    await appState.refreshSessions()
+                    // Delay briefly then restart Live Activities
+                    try? await Task.sleep(nanoseconds: 800_000_000)
                     appState.startLiveActivitiesForActiveSessions()
                 }
             }

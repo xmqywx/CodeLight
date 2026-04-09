@@ -279,6 +279,11 @@ struct ChatView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // App returned from background — socket was likely suspended by iOS,
+            // so delta-fetch any messages we missed while backgrounded.
+            scheduleDeltaFetch()
+        }
         .onDisappear {
             deltaFetchTask?.cancel()
             deltaFetchTask = nil

@@ -17,6 +17,7 @@ final class SocketClient {
     var onSessionsUpdate: (([SessionInfo]) -> Void)?
     var onNewMessage: ((String, UpdateMessage) -> Void)?  // (sessionId, message)
     var onEphemeral: ((String, Bool) -> Void)?             // (sessionId, active)
+    var onConnectionChange: ((Bool) -> Void)?              // connected state
 
     init(serverUrl: String, keyManager: KeyManager) {
         self.serverUrl = serverUrl
@@ -104,6 +105,18 @@ final class SocketClient {
             }
         }
 
+        socket?.on(clientEvent: .connect) { [weak self] _, _ in
+            Task { @MainActor in
+                self?.onConnectionChange?(true)
+            }
+        }
+
+        socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
+            Task { @MainActor in
+                self?.onConnectionChange?(false)
+            }
+        }
+
         socket?.connect()
     }
 
@@ -111,6 +124,21 @@ final class SocketClient {
         socket?.disconnect()
         manager = nil
         socket = nil
+    }
+
+    // MARK: - Ping / Latency
+
+    /// Measure round-trip latency using Socket.io's built-in ping mechanism.
+    /// Emits a lightweight "ping" event and waits for the server ack.
+    func measureLatency() async -> Int? {
+        guard let socket, socket.status == .connected else { return nil }
+        let start = CFAbsoluteTimeGetCurrent()
+        return await withCheckedContinuation { continuation in
+            socket.emitWithAck("ping", [:] as [String: Any]).timingOut(after: 10) { _ in
+                let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                continuation.resume(returning: ms)
+            }
+        }
     }
 
     // MARK: - Sending
@@ -299,7 +327,11 @@ final class SocketClient {
     // MARK: - Event Handling
 
     private func handleUpdate(_ dict: [String: Any]) {
-        guard let type = dict["type"] as? String else { return }
+        guard let type = dict["type"] as? String else {
+            print("[SocketClient] handleUpdate: no 'type' in dict, keys=\(dict.keys)")
+            return
+        }
+        print("[SocketClient] handleUpdate: type=\(type)")
 
         switch type {
         case "new-message":
@@ -307,7 +339,10 @@ final class SocketClient {
                let msgDict = dict["message"] as? [String: Any],
                let msgData = try? JSONSerialization.data(withJSONObject: msgDict),
                let msg = try? JSONDecoder().decode(UpdateMessage.self, from: msgData) {
+                print("[SocketClient] new-message: session=\(sessionId.prefix(10)) seq=\(msg.seq)")
                 onNewMessage?(sessionId, msg)
+            } else {
+                print("[SocketClient] new-message: PARSE FAILED, keys=\(dict.keys)")
             }
         default:
             break

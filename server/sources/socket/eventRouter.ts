@@ -42,14 +42,22 @@ export class EventRouter {
         filter: RecipientFilter,
         skipSocket?: Socket
     ) {
-        for (const conns of this.connections.values()) {
+        let sent = 0;
+        let skipped = 0;
+        for (const [devId, conns] of this.connections.entries()) {
             for (const conn of conns) {
-                if (conn.socket === skipSocket) continue;
+                if (conn.socket === skipSocket) { skipped++; continue; }
                 if (this.shouldSend(conn, filter)) {
                     conn.socket.emit(event, payload);
+                    sent++;
+                } else {
+                    skipped++;
                 }
             }
         }
+        const type = (payload as any)?.type || event;
+        const deviceList = Array.from(this.connections.entries()).map(([id, cs]) => `${id.substring(0,10)}(${cs.size})`).join(', ');
+        console.log(`[EventRouter] ${type}: sent=${sent} skipped=${skipped} totalDevices=${this.connections.size} devices=[${deviceList}]`);
     }
 
     emitEphemeral(_deviceId: string, event: string, payload: unknown) {

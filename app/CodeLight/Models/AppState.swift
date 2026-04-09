@@ -21,6 +21,8 @@ final class AppState: ObservableObject {
     @Published var currentServerUrl: String?
     @Published var sessions: [SessionInfo] = []
     @Published var isConnected = false
+    /// Latest measured round-trip latency to the server in milliseconds.
+    @Published var latencyMs: Int?
     /// Time of the last real message received per session (not heartbeats/phase updates)
     @Published var lastMessageTimeBySession: [String: Date] = [:]
 
@@ -57,6 +59,7 @@ final class AppState: ObservableObject {
 
     private let keyManager = KeyManager(serviceName: "com.codelight.app")
     private(set) var socket: SocketClient?
+    private var pingTimer: Task<Void, Never>?
 
     private init() {
         loadLinkedMacs()
@@ -156,7 +159,17 @@ final class AppState: ObservableObject {
                 self?.updateLiveActivity(sessionId: sessionId, content: msg.content, serverName: serverName)
             }
             client.onEphemeral = { _, _ in }
+            client.onConnectionChange = { [weak self] connected in
+                self?.isConnected = connected
+                if connected {
+                    self?.startPingTimer()
+                } else {
+                    self?.stopPingTimer()
+                    self?.latencyMs = nil
+                }
+            }
             isConnected = true
+            startPingTimer()
             currentServerUrl = url
             lastUsedServerUrl = url
             print("[AppState] Connected to \(url)")
@@ -254,18 +267,19 @@ final class AppState: ObservableObject {
         if currentServerUrl != mac.serverUrl {
             await connectToServer(url: mac.serverUrl)
         }
-        guard let socket else { return }
-        do {
-            try await socket.unlinkDevice(mac.deviceId)
-            linkedMacs.removeAll { $0.deviceId == mac.deviceId && $0.serverUrl == mac.serverUrl }
-            sessions.removeAll { $0.ownerDeviceId == mac.deviceId }
-            saveLinkedMacs()
-        } catch {
-            print("[AppState] Failed to unlink: \(error)")
+        // Best-effort server call — if the server is unreachable we still
+        // wipe local state so the user isn't stuck with an un-removable Mac.
+        if let socket {
+            _ = try? await socket.unlinkDevice(mac.deviceId)
         }
+        linkedMacs.removeAll { $0.deviceId == mac.deviceId && $0.serverUrl == mac.serverUrl }
+        sessions.removeAll { $0.ownerDeviceId == mac.deviceId }
+        saveLinkedMacs()
     }
 
     func disconnect() {
+        stopPingTimer()
+        latencyMs = nil
         socket?.disconnect()
         socket = nil
         sessions = []
@@ -291,6 +305,42 @@ final class AppState: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if collapsed.count <= 120 { return collapsed }
         return String(collapsed.prefix(119)) + "…"
+    }
+
+    // MARK: - Latency Monitoring
+
+    private func startPingTimer() {
+        stopPingTimer()
+        pingTimer = Task { [weak self] in
+            // Initial ping immediately
+            if let ms = await self?.socket?.measureLatency() {
+                self?.latencyMs = ms
+            }
+            // Then every 15 seconds
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                guard !Task.isCancelled else { break }
+                if let ms = await self?.socket?.measureLatency() {
+                    self?.latencyMs = ms
+                } else {
+                    self?.latencyMs = nil
+                }
+            }
+        }
+    }
+
+    private func stopPingTimer() {
+        pingTimer?.cancel()
+        pingTimer = nil
+    }
+
+    /// Re-fetch sessions from the server. Called when returning from background
+    /// to pick up anything missed while the socket was suspended.
+    func refreshSessions() async {
+        guard let socket else { return }
+        if let fetched = try? await socket.fetchSessions() {
+            self.sessions = fetched
+        }
     }
 
     // MARK: - Messaging

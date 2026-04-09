@@ -49,6 +49,9 @@ export function startSocket(server: HttpServer) {
         // still alive even if the user only ever talks via the socket.
         bumpLastSeenAt(payload.deviceId);
 
+        // Lightweight ping for client-side latency measurement — just ack immediately.
+        socket.on('ping', (_data, ack) => { if (typeof ack === 'function') ack({}); });
+
         registerSessionHandler(socket, payload.deviceId, eventRouter);
         registerRpcHandler(socket, payload.deviceId);
 
