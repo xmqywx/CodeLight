@@ -18,6 +18,8 @@ struct CodeLightApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 Task { @MainActor in
+                    // Re-check system notification permission (user may have toggled in Settings)
+                    await PushManager.shared.checkSystemPermission()
                     // Reconnect socket if it dropped while in background
                     if !appState.isConnected {
                         await appState.connect()

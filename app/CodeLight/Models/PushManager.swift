@@ -11,10 +11,25 @@ final class PushManager: NSObject, ObservableObject {
     private static let logger = Logger(subsystem: "com.codelight.app", category: "Push")
 
     @Published var isRegistered = false
+    /// Whether iOS system-level notification permission is granted.
+    @Published var systemPermissionGranted = false
     private var deviceToken: String?
 
     override private init() {
         super.init()
+    }
+
+    /// Re-check the current iOS notification permission and update `systemPermissionGranted`.
+    /// Called when returning from background (user may have toggled in System Settings).
+    func checkSystemPermission() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let granted = settings.authorizationStatus == .authorized
+            || settings.authorizationStatus == .provisional
+            || settings.authorizationStatus == .ephemeral
+        systemPermissionGranted = granted
+        if granted && !isRegistered {
+            UIApplication.shared.registerForRemoteNotifications()
+        }
     }
 
     /// Request notification permissions and register for remote notifications.
@@ -28,6 +43,7 @@ final class PushManager: NSObject, ObservableObject {
             switch settings.authorizationStatus {
             case .notDetermined:
                 let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+                systemPermissionGranted = granted
                 if granted {
                     UIApplication.shared.registerForRemoteNotifications()
                     Self.logger.info("Push permission granted; registering")
@@ -35,13 +51,11 @@ final class PushManager: NSObject, ObservableObject {
                     Self.logger.info("Push permission denied")
                 }
             case .authorized, .provisional, .ephemeral:
-                // Already authorized on a previous launch — kick the registration
-                // again so iOS calls back with the current device token, which
-                // lets us re-upload it to the server in case the install changed
-                // or the server forgot about it.
+                systemPermissionGranted = true
                 UIApplication.shared.registerForRemoteNotifications()
                 Self.logger.info("Push already authorized; re-registering")
             case .denied:
+                systemPermissionGranted = false
                 Self.logger.info("Push denied by user — cannot register")
             @unknown default:
                 UIApplication.shared.registerForRemoteNotifications()

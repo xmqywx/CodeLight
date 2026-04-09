@@ -132,6 +132,14 @@ export async function sessionRoutes(app: FastifyInstance) {
             update: {},
         });
 
+        // Notify all linked devices (iPhones) that the session list changed.
+        // This lets the phone refresh immediately when CodeIsland registers a
+        // new session — no polling needed.
+        eventRouter.emitUpdate(deviceId, 'update', {
+            type: 'sessions-changed',
+            deviceId,
+        }, { type: 'user-scoped-only' });
+
         return session;
     });
 

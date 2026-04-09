@@ -104,7 +104,9 @@ struct MacSessionListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showLaunchSheet) {
+        .sheet(isPresented: $showLaunchSheet, onDismiss: {
+            Task { await appState.refreshSessions() }
+        }) {
             NavigationStack {
                 LaunchSessionSheet(mac: mac)
             }

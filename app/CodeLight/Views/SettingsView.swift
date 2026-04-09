@@ -199,25 +199,26 @@ struct SettingsView: View {
 
             // Notifications
             Section {
-                HStack {
-                    Label(String(localized: "push_notifications"), systemImage: "bell.badge")
-                    Spacer()
-                    Text(PushManager.shared.isRegistered ? String(localized: "enabled") : String(localized: "disabled"))
-                        .foregroundStyle(.secondary)
-                }
-
-                if !PushManager.shared.isRegistered {
-                    Button {
-                        Task { await PushManager.shared.requestPermission() }
-                    } label: {
-                        Text(String(localized: "enable_notifications"))
+                // System permission status — tap to open iOS notification settings
+                Button {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label(String(localized: "push_notifications"), systemImage: "bell.badge")
+                        Spacer()
+                        Text(PushManager.shared.systemPermissionGranted ? String(localized: "enabled") : String(localized: "disabled"))
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .foregroundStyle(.primary)
 
                 // Master kill-switch: when off, the server skips ALL pushes
                 // for this device regardless of the per-kind toggles below.
-                // The per-kind toggles are also disabled visually so it's
-                // obvious why nothing is firing.
                 Toggle(isOn: Binding(
                     get: { notificationPrefs.notificationsEnabled },
                     set: { newValue in
@@ -231,7 +232,7 @@ struct SettingsView: View {
                         Image(systemName: "bell.slash")
                     }
                 }
-                .disabled(!prefsLoaded)
+                .disabled(!prefsLoaded || !PushManager.shared.systemPermissionGranted)
 
                 Toggle(isOn: Binding(
                     get: { notificationPrefs.notifyOnCompletion },

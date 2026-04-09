@@ -18,6 +18,7 @@ final class SocketClient {
     var onNewMessage: ((String, UpdateMessage) -> Void)?  // (sessionId, message)
     var onEphemeral: ((String, Bool) -> Void)?             // (sessionId, active)
     var onConnectionChange: ((Bool) -> Void)?              // connected state
+    var onSessionsChanged: (() -> Void)?                   // session list changed on server
 
     init(serverUrl: String, keyManager: KeyManager) {
         self.serverUrl = serverUrl
@@ -344,6 +345,9 @@ final class SocketClient {
             } else {
                 print("[SocketClient] new-message: PARSE FAILED, keys=\(dict.keys)")
             }
+        case "sessions-changed":
+            print("[SocketClient] sessions-changed")
+            onSessionsChanged?()
         default:
             break
         }

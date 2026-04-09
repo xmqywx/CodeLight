@@ -1,5 +1,7 @@
 import { SignJWT, importPKCS8 } from 'jose';
 import http2 from 'node:http2';
+import fs from 'node:fs';
+import path from 'node:path';
 import { config } from '@/config';
 
 /**
@@ -49,7 +51,15 @@ async function getAuthToken(apnsConfig: APNsConfig): Promise<string> {
         return cachedToken.token;
     }
 
-    const keyData = Buffer.from(apnsConfig.privateKey, 'base64').toString('utf-8');
+    // Prefer reading the .p8 file directly (avoids base64 encoding issues
+    // with OpenSSL 3.0.19+). Fall back to base64-encoded APNS_KEY env var.
+    let keyData: string;
+    const p8Path = path.resolve(process.cwd(), 'apns-key.p8');
+    if (fs.existsSync(p8Path)) {
+        keyData = fs.readFileSync(p8Path, 'utf-8');
+    } else {
+        keyData = Buffer.from(apnsConfig.privateKey, 'base64').toString('utf-8');
+    }
     const privateKey = await importPKCS8(keyData, 'ES256');
 
     const token = await new SignJWT({})

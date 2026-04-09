@@ -159,6 +159,9 @@ final class AppState: ObservableObject {
                 self?.updateLiveActivity(sessionId: sessionId, content: msg.content, serverName: serverName)
             }
             client.onEphemeral = { _, _ in }
+            client.onSessionsChanged = { [weak self] in
+                Task { await self?.refreshSessions() }
+            }
             client.onConnectionChange = { [weak self] connected in
                 self?.isConnected = connected
                 if connected {
