@@ -41,6 +41,9 @@ final class AppState: ObservableObject {
     /// features (session sync, messaging, remote control) are unavailable.
     /// The user can dismiss the paywall but sees a degraded-state banner.
     @Published var isSubscriptionBlocked: Bool = false
+    /// Set by StoreManager when a server verify call returns 401.
+    /// The next connectToServer call will re-authenticate automatically.
+    var needsReauthentication: Bool = false
 
     enum SubscriptionReason {
         case trialExpired

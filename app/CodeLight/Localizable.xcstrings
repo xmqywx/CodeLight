@@ -3104,6 +3104,22 @@
         }
       }
     },
+    "sub_pending_server": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchased, connecting..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已购买，连接服务器中..."
+          }
+        }
+      }
+    },
     "sub_restore_purchase": {
       "localizations": {
         "en": {

@@ -105,9 +105,20 @@ struct SubscriptionView: View {
                     }
                 }
             }
-            .interactiveDismissDisabled(storeManager.purchaseState == .purchasing)
+            .interactiveDismissDisabled(
+                storeManager.purchaseState == .purchasing
+                || storeManager.purchaseState == .verifying
+            )
         }
         .preferredColorScheme(.dark)
+        .onChange(of: appState.subscriptionStatus) { _, newStatus in
+            // Auto-dismiss when server confirms subscription (e.g. via subscription-updated event)
+            if newStatus == "active" {
+                Haptics.success()
+                appState.isSubscriptionBlocked = false
+                dismiss()
+            }
+        }
     }
 
     // MARK: - Already Purchased
@@ -227,6 +238,14 @@ struct SubscriptionView: View {
                         Text(String(localized: "sub_success"))
                             .font(.headline)
                     }
+                case .pendingServerVerify:
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(Theme.onBrand)
+                        Text(String(localized: "sub_pending_server"))
+                            .font(.headline)
+                    }
                 default:
                     Text(String(localized: "sub_unlock_button"))
                         .font(.headline)
@@ -244,7 +263,8 @@ struct SubscriptionView: View {
         .disabled(storeManager.product == nil
                   || storeManager.purchaseState == .purchasing
                   || storeManager.purchaseState == .verifying
-                  || storeManager.purchaseState == .success)
+                  || storeManager.purchaseState == .success
+                  || storeManager.purchaseState == .pendingServerVerify)
         .opacity(storeManager.product == nil ? 0.5 : 1)
     }
 
@@ -313,12 +333,19 @@ struct SubscriptionView: View {
         Haptics.medium()
         do {
             let tx = try await storeManager.purchase()
-            if tx != nil {
+            guard tx != nil else { return }
+
+            if storeManager.purchaseState == .success {
+                // Server confirmed — all good, dismiss.
                 Haptics.success()
-                // Brief pause to show success state
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 appState.isSubscriptionBlocked = false
                 dismiss()
+            } else if storeManager.purchaseState == .pendingServerVerify {
+                // StoreKit purchase succeeded but server verify failed/pending.
+                // Keep the paywall open and show a "purchased, connecting..." state.
+                // The paywall will auto-dismiss when subscription-updated arrives.
+                Haptics.medium()
             }
         } catch {
             Haptics.error()

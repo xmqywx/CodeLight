@@ -19,6 +19,9 @@ final class StoreManager: ObservableObject {
     @Published var product: Product?
     @Published var isPurchased: Bool = false
     @Published var purchaseState: PurchaseState = .idle
+    /// True when StoreKit confirms purchase but server verify hasn't succeeded yet.
+    /// UI can show "purchased, connecting to server..." state.
+    @Published var purchasedButPendingVerify: Bool = false
 
     enum PurchaseState: Equatable {
         case idle
@@ -26,11 +29,25 @@ final class StoreManager: ObservableObject {
         case purchasing
         case verifying
         case success
+        case pendingServerVerify   // StoreKit OK, server not yet confirmed
         case error(String)
+    }
+
+    /// Result of the most recent verifyWithServer call.
+    enum VerifyResult {
+        case success
+        case networkError
+        case authExpired   // 401 — token needs refresh
+        case serverError
     }
 
     private var transactionListener: Task<Void, Never>?
     private let pendingVerifyKey = "pendingOriginalTransactionId"
+    private let pendingServerUrlKey = "pendingVerifyServerUrl"
+    private let keyManager = KeyManager(serviceName: "com.codelight.app")
+
+    /// Throttle: earliest time retryPendingVerify may fire again.
+    private var nextRetryAllowedAt: Date = .distantPast
 
     private init() {}
 
@@ -101,15 +118,32 @@ final class StoreManager: ObservableObject {
         case .success(let verification):
             switch verification {
             case .verified(let tx):
-                isPurchased = true
                 purchaseState = .verifying
+                purchasedButPendingVerify = true
 
-                // Persist for retry in case server is unreachable
+                // Persist for retry in case server is unreachable.
+                // Record the server URL at purchase time so retries go to the right server.
                 savePendingVerify(originalTransactionId: tx.originalID)
-                await verifyWithServer(originalTransactionId: tx.originalID)
+                let verifyResult = await verifyWithServer(originalTransactionId: tx.originalID)
 
                 await tx.finish()
-                purchaseState = .success
+
+                switch verifyResult {
+                case .success:
+                    isPurchased = true
+                    purchasedButPendingVerify = false
+                    purchaseState = .success
+                case .authExpired:
+                    // Token expired — tell AppState to re-authenticate.
+                    purchasedButPendingVerify = true
+                    purchaseState = .pendingServerVerify
+                    AppState.shared.needsReauthentication = true
+                case .networkError, .serverError:
+                    // Purchase is real (StoreKit confirmed), but server doesn't know yet.
+                    // Will retry on next reconnect.
+                    purchasedButPendingVerify = true
+                    purchaseState = .pendingServerVerify
+                }
                 return tx
 
             case .unverified(_, let error):
@@ -165,10 +199,18 @@ final class StoreManager: ObservableObject {
                     if tx.revocationDate != nil {
                         // Refund: revoke access
                         self.isPurchased = false
+                        self.purchasedButPendingVerify = false
                     } else {
-                        self.isPurchased = true
+                        self.purchasedButPendingVerify = true
                         self.savePendingVerify(originalTransactionId: tx.originalID)
-                        await self.verifyWithServer(originalTransactionId: tx.originalID)
+                        let verifyResult = await self.verifyWithServer(originalTransactionId: tx.originalID)
+                        if verifyResult == .success {
+                            self.isPurchased = true
+                            self.purchasedButPendingVerify = false
+                        }
+                        if verifyResult == .authExpired {
+                            AppState.shared.needsReauthentication = true
+                        }
                     }
                     await tx.finish()
                 case .unverified:
@@ -184,18 +226,27 @@ final class StoreManager: ObservableObject {
     /// URLRequest with the current server URL + auth token. Does NOT depend on
     /// AppState.socket (which can be nil during reconnect).
     ///
+    /// Uses the server URL recorded at purchase time (pendingServerUrlKey) so that
+    /// multi-server setups don't verify against the wrong server.
+    ///
     /// `originalTransactionId` is UInt64 from StoreKit 2, sent as String because
     /// UInt64 exceeds JavaScript's Number.MAX_SAFE_INTEGER (2^53-1).
-    private func verifyWithServer(originalTransactionId: UInt64) async {
-        guard let serverUrl = AppState.shared.currentServerUrl ?? AppState.shared.lastUsedServerUrl else {
+    @discardableResult
+    private func verifyWithServer(originalTransactionId: UInt64) async -> VerifyResult {
+        // Prefer the server URL recorded at purchase time; fall back to current/last.
+        let serverUrl: String
+        if let recorded = UserDefaults.standard.string(forKey: pendingServerUrlKey), !recorded.isEmpty {
+            serverUrl = recorded
+        } else if let current = AppState.shared.currentServerUrl ?? AppState.shared.lastUsedServerUrl {
+            serverUrl = current
+        } else {
             print("[StoreManager] No server URL available for verify")
-            return
+            return .networkError
         }
 
-        let keyManager = KeyManager(serviceName: "com.codelight.app")
         guard let token = keyManager.loadToken(forServer: serverUrl) else {
             print("[StoreManager] No auth token for \(serverUrl)")
-            return
+            return .authExpired
         }
 
         let url = URL(string: "\(serverUrl)/v1/subscription/verify")!
@@ -210,17 +261,28 @@ final class StoreManager: ObservableObject {
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let success = json["success"] as? Bool, success {
-                    clearPendingVerify()
-                    print("[StoreManager] Server verify success")
-                    return
-                }
+            guard let http = response as? HTTPURLResponse else {
+                return .networkError
             }
-            print("[StoreManager] Server verify failed, will retry on next connect")
+
+            if http.statusCode == 401 {
+                print("[StoreManager] Server verify 401 — token expired, needs re-auth")
+                return .authExpired
+            }
+
+            if (200...299).contains(http.statusCode),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let success = json["success"] as? Bool, success {
+                clearPendingVerify()
+                print("[StoreManager] Server verify success")
+                return .success
+            }
+
+            print("[StoreManager] Server verify failed (\(http.statusCode)), will retry on next connect")
+            return .serverError
         } catch {
             print("[StoreManager] Server verify network error: \(error.localizedDescription)")
+            return .networkError
         }
     }
 
@@ -228,18 +290,39 @@ final class StoreManager: ObservableObject {
 
     private func savePendingVerify(originalTransactionId: UInt64) {
         UserDefaults.standard.set("\(originalTransactionId)", forKey: pendingVerifyKey)
+        // Record the server URL at purchase time so retries go to the correct server.
+        if let url = AppState.shared.currentServerUrl ?? AppState.shared.lastUsedServerUrl {
+            UserDefaults.standard.set(url, forKey: pendingServerUrlKey)
+        }
     }
 
     private func clearPendingVerify() {
         UserDefaults.standard.removeObject(forKey: pendingVerifyKey)
+        UserDefaults.standard.removeObject(forKey: pendingServerUrlKey)
     }
 
     /// Called from AppState on every successful socket reconnect.
-    /// If a pending verify exists, retries the server call.
+    /// Throttled: skips if called again within 60 seconds of the last attempt.
     func retryPendingVerify() async {
         guard let idString = UserDefaults.standard.string(forKey: pendingVerifyKey),
               let id = UInt64(idString) else { return }
+
+        // Throttle: at most once per 60 seconds
+        let now = Date()
+        guard now >= nextRetryAllowedAt else {
+            print("[StoreManager] Retry throttled, next allowed at \(nextRetryAllowedAt)")
+            return
+        }
+        nextRetryAllowedAt = now.addingTimeInterval(60)
+
         print("[StoreManager] Retrying pending verify for \(idString)")
-        await verifyWithServer(originalTransactionId: id)
+        let result = await verifyWithServer(originalTransactionId: id)
+        if result == .success {
+            isPurchased = true
+            purchasedButPendingVerify = false
+            purchaseState = .idle
+        } else if result == .authExpired {
+            AppState.shared.needsReauthentication = true
+        }
     }
 }
