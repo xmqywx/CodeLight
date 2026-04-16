@@ -56,7 +56,11 @@ public final class KeyManager: Sendable {
                let accessRef {
                 addQuery[kSecAttrAccess as String] = accessRef
             }
-            SecItemAdd(addQuery as CFDictionary, nil)
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+            assert(
+                addStatus == errSecSuccess || addStatus == errSecDuplicateItem,
+                "KeyManager migration: failed to re-save item '\(account)': \(addStatus)"
+            )
         }
         #endif
     }
@@ -156,9 +160,11 @@ public final class KeyManager: Sendable {
         // re-sign (i.e. every update), causing macOS to prompt for the keychain
         // password on each launch after an update.
         var accessRef: SecAccess?
-        if SecAccessCreate(serviceName as CFString, nil, &accessRef) == errSecSuccess,
-           let accessRef {
+        let accessStatus = SecAccessCreate(serviceName as CFString, nil, &accessRef)
+        if accessStatus == errSecSuccess, let accessRef {
             addQuery[kSecAttrAccess as String] = accessRef
+        } else {
+            assert(false, "KeyManager: SecAccessCreate failed: \(accessStatus) — item will use default ACL")
         }
         #else
         addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
