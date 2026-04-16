@@ -58,6 +58,10 @@ final class AppState: ObservableObject {
     /// correct SwiftUI presentation hierarchy (not from within a sheet).
     var pendingSubscriptionPaywall: Bool = false
 
+    // MARK: - Device Re-registration Alert
+    @Published var showDeviceReregistered: Bool = false
+    @Published var deviceReregisteredMacName: String = ""
+
     enum SheetType: Identifiable {
         case subscription
         case deviceLimit
@@ -214,6 +218,11 @@ final class AppState: ObservableObject {
                         self?.showSubscriptionPaywall = false
                     }
                 }
+            }
+            client.onDeviceReregistered = { [weak self] info in
+                let macName = info["name"] as? String ?? "Mac"
+                self?.deviceReregisteredMacName = macName
+                self?.showDeviceReregistered = true
             }
             client.onEphemeral = { _, _ in }
             client.onSessionsChanged = { [weak self] in

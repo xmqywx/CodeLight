@@ -66,7 +66,7 @@ struct SubOptionPicker: View {
     }
 }
 
-/// The full snapshot uploaded by CodeIsland.
+/// The full snapshot uploaded by MioIsland.
 struct CapabilitySnapshot: Decodable {
     let builtinCommands: [CapabilityItem]
     let userCommands: [CapabilityItem]

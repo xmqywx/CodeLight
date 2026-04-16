@@ -65,13 +65,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeLight — Monitor and control Claude Code from your iPhone.\nMade with passion by the CodeIsland team."
+            "value" : "CodeLight — Monitor and control Claude Code from your iPhone.\nMade with passion by the MioIsland team."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeLight — 从 iPhone 监控和操作 Claude Code。\n由 CodeIsland 团队倾力打造。"
+            "value" : "CodeLight — 从 iPhone 监控和操作 Claude Code。\n由 MioIsland 团队倾力打造。"
           }
         }
       }
@@ -378,13 +378,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeIsland (Mac companion)"
+            "value" : "MioIsland (Mac companion)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeIsland (Mac 伴侣应用)"
+            "value" : "MioIsland (Mac 伴侣应用)"
           }
         }
       }
@@ -1322,13 +1322,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Start a Claude Code session on your Mac\nwith CodeIsland running to see it here."
+            "value" : "Start a Claude Code session on your Mac\nwith MioIsland running to see it here."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 Mac 上启动 Claude Code 会话\n并运行 CodeIsland 即可在此查看。"
+            "value" : "在 Mac 上启动 Claude Code 会话\n并运行 MioIsland 即可在此查看。"
           }
         }
       }
@@ -1980,13 +1980,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This QR is from an outdated CodeIsland — please update your Mac app"
+            "value" : "This QR is from an outdated MioIsland — please update your Mac app"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "二维码格式过旧，请升级你的 CodeIsland Mac 应用"
+            "value" : "二维码格式过旧，请升级你的 MioIsland Mac 应用"
           }
         }
       }
@@ -2280,6 +2280,24 @@
             "value" : "未连接服务器。"
           }
         }
+      }
+    },
+    "device_reregistered_title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac Re-registered" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac 已重新注册" } }
+      }
+    },
+    "device_reregistered_message %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\"%@\" has re-registered with a new pairing code. Your current pairing is no longer valid. Please re-pair in MioIsland." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 已使用新的配对码重新注册，当前配对已失效。请在 MioIsland 上重新配对。" } }
+      }
+    },
+    "device_reregistered_repair" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Re-pair Now" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "立即重新配对" } }
       }
     },
     "redeem_placeholder" : {
@@ -2644,13 +2662,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open CodeIsland on your Mac\nand scan the pairing QR code"
+            "value" : "Open MioIsland on your Mac\nand scan the pairing QR code"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 Mac 上打开 CodeIsland\n然后扫描配对二维码"
+            "value" : "在 Mac 上打开 MioIsland\n然后扫描配对二维码"
           }
         }
       }
@@ -2975,13 +2993,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Install CodeIsland on your Mac"
+            "value" : "Install MioIsland on your Mac"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 Mac 上安装 CodeIsland"
+            "value" : "在 Mac 上安装 MioIsland"
           }
         }
       }

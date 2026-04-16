@@ -45,6 +45,14 @@ struct RootView: View {
                 DeviceLimitView()
             }
         }
+        .alert(String(localized: "device_reregistered_title"), isPresented: $appState.showDeviceReregistered) {
+            Button(String(localized: "device_reregistered_repair")) {
+                // Navigate to pairing view by clearing linked macs for this server
+            }
+            Button(String(localized: "ok"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "device_reregistered_message \(appState.deviceReregisteredMacName)"))
+        }
     }
 
     // MARK: - Subscription Banner

@@ -324,7 +324,7 @@ struct SettingsView: View {
                     Label(String(localized: "github"), systemImage: "link")
                 }
 
-                Link(destination: URL(string: "https://github.com/xmqywx/CodeIsland")!) {
+                Link(destination: URL(string: "https://github.com/MioMioOS/MioIsland")!) {
                     Label(String(localized: "codeisland_mac_companion"), systemImage: "desktopcomputer")
                 }
 

@@ -750,7 +750,7 @@ struct ChatView: View {
             }
 
             // Compose payload. If there are blobs, send JSON; otherwise keep plain text so
-            // CodeIsland's existing "plain text = user message" path still works.
+            // MioIsland's existing "plain text = user message" path still works.
             let payloadString: String
             if !blobIds.isEmpty {
                 var payload: [String: Any] = ["type": "user", "text": text]

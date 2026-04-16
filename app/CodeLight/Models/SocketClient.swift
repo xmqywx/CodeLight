@@ -21,6 +21,7 @@ final class SocketClient {
     var onSessionsChanged: (() -> Void)?                   // session list changed on server
     var onSubscriptionRequired: (([String: Any]) -> Void)? // server demands subscription
     var onDeviceLimitReached: (([String: Any]) -> Void)?   // too many devices for this license
+    var onDeviceReregistered: (([String: Any]) -> Void)?   // Mac re-registered with new pairing code
     var onSubscriptionUpdated: (([String: Any]) -> Void)?  // subscription status changed
 
     init(serverUrl: String, keyManager: KeyManager) {
@@ -127,6 +128,13 @@ final class SocketClient {
             guard let dict = data.first as? [String: Any] else { return }
             Task { @MainActor in
                 self?.onSubscriptionUpdated?(dict)
+            }
+        }
+
+        socket?.on("device-reregistered") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any] else { return }
+            Task { @MainActor in
+                self?.onDeviceReregistered?(dict)
             }
         }
 
@@ -402,7 +410,7 @@ final class SocketClient {
     }
 
     /// Fetch the capability snapshot (slash commands, skills, MCP servers) uploaded
-    /// by CodeIsland for this device. Used by the phone's command picker.
+    /// by MioIsland for this device. Used by the phone's command picker.
     func fetchCapabilities() async throws -> CapabilitySnapshot {
         let url = URL(string: "\(serverUrl)/v1/capabilities")!
         var request = URLRequest(url: url)
@@ -410,7 +418,7 @@ final class SocketClient {
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode == 404 {
             throw NSError(domain: "CodeLight.Capabilities", code: 404,
-                          userInfo: [NSLocalizedDescriptionKey: "CodeIsland hasn't uploaded capabilities yet. Start CodeIsland on your Mac."])
+                          userInfo: [NSLocalizedDescriptionKey: "MioIsland hasn't uploaded capabilities yet. Start MioIsland on your Mac."])
         }
         return try JSONDecoder().decode(CapabilitySnapshot.self, from: data)
     }

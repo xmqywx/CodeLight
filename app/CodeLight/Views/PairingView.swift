@@ -3,7 +3,7 @@ import AVFoundation
 import VisionKit
 import CodeLightProtocol
 
-/// Pair with a Mac CodeIsland — supports BOTH QR scanning and manual short-code entry.
+/// Pair with a Mac MioIsland — supports BOTH QR scanning and manual short-code entry.
 ///
 /// Both paths converge on `appState.pairWithCode(...)`. The QR scanner reads the
 /// `{server, code}` payload that the Mac displays; the manual entry tab takes a
