@@ -17,14 +17,23 @@ public final class KeyManager: Sendable {
         migrateKeychainAccessibility()
     }
 
-    /// One-time migration: re-save all existing Keychain items under this service
-    /// with an open-access ACL so any app version can read them without prompting.
-    /// Ad-hoc signed apps have a different code-signature hash on every update, so
-    /// items that use the default app-based ACL always trigger a password dialog
-    /// after an update. Calling SecAccessCreate with nil trusted apps removes that
-    /// restriction permanently.
+    /// One-time migration: re-save all existing Keychain items with the correct
+    /// attributes for this platform.
+    ///
+    /// macOS: open-access ACL so any app version can read without password prompt.
+    /// iOS: synchronized = true so items survive app uninstall/reinstall via iCloud
+    ///      Keychain. Without this, items stored in the default (non-synchronized)
+    ///      keychain are deleted when the app is removed (iOS 16+ policy).
     private func migrateKeychainAccessibility() {
         #if os(macOS)
+        migrateToOpenACL()
+        #else
+        migrateToSynchronized()
+        #endif
+    }
+
+    #if os(macOS)
+    private func migrateToOpenACL() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -62,8 +71,55 @@ public final class KeyManager: Sendable {
                 "KeyManager migration: failed to re-save item '\(account)': \(addStatus)"
             )
         }
-        #endif
     }
+    #endif
+
+    #if !os(macOS)
+    /// Re-save any non-synchronized keychain items as synchronized so they persist
+    /// across app deletion and reinstallation via iCloud Keychain.
+    private func migrateToSynchronized() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let items = result as? [[String: Any]] else { return }
+
+        for item in items {
+            guard let account = item[kSecAttrAccount as String] as? String,
+                  let data = item[kSecValueData as String] as? Data else { continue }
+
+            // Skip items that are already synchronized
+            if let sync = item[kSecAttrSynchronizable as String] as? Bool, sync { continue }
+            if let sync = item[kSecAttrSynchronizable as String], (sync as AnyObject).boolValue == true { continue }
+
+            // Delete old non-synchronized item and re-add as synchronized
+            let deleteQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: account,
+                kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+            ]
+            SecItemDelete(deleteQuery as CFDictionary)
+
+            let addQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: serviceName,
+                kSecAttrAccount as String: account,
+                kSecValueData as String: data,
+                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+                kSecAttrSynchronizable as String: true,
+            ]
+            SecItemAdd(addQuery as CFDictionary, nil)
+        }
+    }
+    #endif
 
     // MARK: - Ed25519 Identity Key
 
@@ -142,23 +198,17 @@ public final class KeyManager: Sendable {
     // MARK: - Keychain Helpers
 
     private func saveToKeychain(key: String, data: Data) throws {
-        let query: [String: Any] = [
+        #if os(macOS)
+        let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: key,
         ]
+        SecItemDelete(deleteQuery as CFDictionary)
 
-        SecItemDelete(query as CFDictionary)
-
-        var addQuery = query
+        var addQuery = deleteQuery
         addQuery[kSecValueData as String] = data
-
-        #if os(macOS)
-        // On macOS, use SecAccess with nil trusted apps so any app version can read
-        // this item without a password prompt. The default behavior ties the ACL to
-        // the calling binary's code signature hash, which changes on every ad-hoc
-        // re-sign (i.e. every update), causing macOS to prompt for the keychain
-        // password on each launch after an update.
+        // Open-access ACL: any application can read without password prompt
         var accessRef: SecAccess?
         let accessStatus = SecAccessCreate(serviceName as CFString, nil, &accessRef)
         if accessStatus == errSecSuccess, let accessRef {
@@ -167,7 +217,25 @@ public final class KeyManager: Sendable {
             assert(false, "KeyManager: SecAccessCreate failed: \(accessStatus) — item will use default ACL")
         }
         #else
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        // On iOS, delete both synchronized and non-synchronized variants before writing
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        // Save as synchronized so the item persists across app uninstall/reinstall.
+        // iOS 16+ deletes non-synchronized keychain items when the app is removed.
+        var addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            kSecAttrSynchronizable as String: true,
+        ]
         #endif
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
@@ -177,12 +245,17 @@ public final class KeyManager: Sendable {
     }
 
     private func loadFromKeychain(key: String) -> Data? {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
         ]
+        #if !os(macOS)
+        // Search both synchronized and non-synchronized to handle items
+        // saved before migration to synchronized storage.
+        query[kSecAttrSynchronizable as String] = kSecAttrSynchronizableAny
+        #endif
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
