@@ -308,6 +308,11 @@ final class AppState: ObservableObject {
                     self?.latencyMs = nil
                 }
             }
+            // HTTP auth succeeded — mark as connected immediately so the UI and
+            // downstream callers (PushManager, StoreManager) see the right state.
+            // The socket's onConnectionChange will fire again once the WebSocket
+            // handshake completes, which is fine (idempotent set to true).
+            isConnected = true
             currentServerUrl = url
             lastUsedServerUrl = url
 
