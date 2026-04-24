@@ -31,7 +31,7 @@ final class SocketClient {
         // Strip any trailing slash so "/v1/auth" always produces a clean URL.
         self.serverUrl = serverUrl.hasSuffix("/") ? String(serverUrl.dropLast()) : serverUrl
         self.keyManager = keyManager
-        self.token = keyManager.loadToken(forServer: serverUrl)
+        self.token = keyManager.loadToken(forServer: self.serverUrl)
     }
 
     /// Build a URL from `serverUrl + path`. Throws `URLError(.badURL)` if

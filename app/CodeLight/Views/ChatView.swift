@@ -127,6 +127,12 @@ struct ChatView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
+                // Update turns BEFORE the seq onChange reads turns.last.
+                // SwiftUI fires modifiers in declaration order on the same view,
+                // so placing this first guarantees turns is fresh when scroll logic runs.
+                .onChange(of: messages) { _, _ in
+                    turns = groupMessagesIntoTurns(messages)
+                }
                 .onChange(of: messages.last?.seq ?? 0) { oldSeq, newSeq in
                     // Only scroll when NEW messages arrive (seq increases),
                     // not when older messages are prepended.
@@ -323,9 +329,6 @@ struct ChatView: View {
             // second trigger is the one that actually succeeds.
             guard connected else { return }
             scheduleDeltaFetch()
-        }
-        .onChange(of: messages) { _, _ in
-            turns = groupMessagesIntoTurns(messages)
         }
         .onDisappear {
             deltaFetchTask?.cancel()
