@@ -110,7 +110,10 @@ final class PushManager: NSObject, ObservableObject {
             return
         }
 
-        let url = URL(string: "\(serverUrl)/v1/push-tokens")!
+        guard let url = URL(string: "\(serverUrl)/v1/push-tokens") else {
+            Self.logger.error("sendTokenToServer: malformed server URL: \(serverUrl)")
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

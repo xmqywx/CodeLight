@@ -29,7 +29,7 @@ struct TurnView: View {
                             .frame(width: 2)
                             .clipShape(RoundedRectangle(cornerRadius: 1))
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("YOU")
+                            Text(String(localized: "label_you"))
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .tracking(1.0)
                                 .foregroundStyle(Theme.brand)
@@ -158,7 +158,7 @@ struct TurnView: View {
                                     Image(systemName: "photo")
                                         .font(.system(size: 20))
                                         .foregroundStyle(.secondary)
-                                    Text("Sent")
+                                    Text(String(localized: "label_sent"))
                                         .font(.system(size: 9, weight: .medium))
                                         .foregroundStyle(.secondary)
                                 }

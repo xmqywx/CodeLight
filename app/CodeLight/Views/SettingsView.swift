@@ -489,8 +489,17 @@ struct SettingsView: View {
     }
 
     private func syncPrefs() async {
-        guard let socket = appState.socket else { return }
-        _ = try? await socket.updateNotificationPrefs(notificationPrefs)
+        guard let socket = appState.socket else {
+            reconnectStatus = .failure(String(localized: "not_connected"))
+            return
+        }
+        do {
+            _ = try await socket.updateNotificationPrefs(notificationPrefs)
+        } catch {
+            // Revert the toggle the user just flipped so UI stays in sync with server.
+            notificationPrefs = (try? await socket.fetchNotificationPrefs()) ?? notificationPrefs
+            reconnectStatus = .failure(String(localized: "sync_failed"))
+        }
     }
 
     private func runCleanup() async {
@@ -504,7 +513,10 @@ struct SettingsView: View {
         Haptics.medium()
         cleanupStatus = .running
 
-        let url = URL(string: "\(serverUrl)/v1/sessions/cleanup")!
+        guard let url = URL(string: "\(serverUrl)/v1/sessions/cleanup") else {
+            cleanupStatus = .failure(String(localized: "not_connected"))
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

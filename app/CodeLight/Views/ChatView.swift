@@ -48,6 +48,7 @@ struct ChatView: View {
     @State private var showPhotoLibrary = false
     @State private var showCamera = false
     @State private var isSending = false
+    @State private var sendError: String? = nil
     @State private var showCapabilitySheet = false
     @State private var isLoading = true
     @State private var isLoadingMore = false
@@ -604,12 +605,23 @@ struct ChatView: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Theme.bgPrimary)
-        .overlay(
-            Rectangle()
-                .fill(Theme.divider)
-                .frame(height: 0.5),
-            alignment: .top
-        )
+        .overlay(alignment: .top) {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(Theme.divider)
+                    .frame(height: 0.5)
+                if let err = sendError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(Theme.danger)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: sendError)
     }
 
     private var canSend: Bool {
@@ -794,12 +806,33 @@ struct ChatView: View {
             // Upload blobs first (if any), keeping the raw data in a local cache so
             // MessageRow can render the image immediately in history.
             var blobIds: [String] = []
+            var uploadFailCount = 0
             if !attachmentsToSend.isEmpty, let socket = appState.socket {
                 for att in attachmentsToSend {
                     if let id = try? await socket.uploadBlob(data: att.data, mime: "image/jpeg") {
                         blobIds.append(id)
                         await MainActor.run { appState.addSentImage(att.data, forBlobId: id) }
+                    } else {
+                        uploadFailCount += 1
                     }
+                }
+            }
+            // If some images failed to upload, warn the user before the message goes out.
+            if uploadFailCount > 0 {
+                await MainActor.run {
+                    isSending = false
+                    pendingSend = nil
+                    let msg = uploadFailCount == attachmentsToSend.count
+                        ? String(localized: "image_upload_all_failed")
+                        : String(format: String(localized: "image_upload_partial_failed %lld"), uploadFailCount)
+                    // Reuse the compose bar error — brief, non-blocking.
+                    sendError = msg
+                }
+                if blobIds.isEmpty { return }
+                // Some succeeded — continue sending with the ones that uploaded.
+                await MainActor.run {
+                    isSending = true
+                    sendError = nil
                 }
             }
 

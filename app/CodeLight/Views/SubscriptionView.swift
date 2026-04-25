@@ -330,30 +330,43 @@ struct SubscriptionView: View {
     // MARK: - Footer
 
     private var footerLinks: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 20) {
-                Button {
-                    Task { await handleRestore() }
-                } label: {
-                    Text(String(localized: "sub_restore_purchase").uppercased())
+        VStack(spacing: 12) {
+            // Restore — prominent standalone row (Apple Guideline 3.1.1)
+            Button {
+                Task { await handleRestore() }
+            } label: {
+                Group {
+                    if isRestoring {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small).tint(Theme.textSecondary)
+                            Text(String(localized: "sub_restore_purchase"))
+                        }
+                    } else {
+                        Text(String(localized: "sub_restore_purchase"))
+                    }
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.textSecondary)
+            }
+            .disabled(isRestoring)
+
+            // Redeem + small legal links
+            HStack(spacing: 16) {
+                redeemInlineButton
+
+                if let privacyURL = URL(string: "https://code.7ove.online/privacy") {
+                    Link(String(localized: "privacy_policy").uppercased(),
+                         destination: privacyURL)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(Theme.textTertiary)
                 }
-                .disabled(isRestoring)
 
-                redeemInlineButton
-            }
-
-            HStack(spacing: 16) {
-                Link(String(localized: "privacy_policy").uppercased(),
-                     destination: URL(string: "https://code.7ove.online/privacy")!)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(Theme.textTertiary)
-
-                Link(String(localized: "sub_terms").uppercased(),
-                     destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(Theme.textTertiary)
+                if let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+                    Link(String(localized: "sub_terms").uppercased(),
+                         destination: termsURL)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
         }
     }
@@ -425,7 +438,12 @@ struct SubscriptionView: View {
         let trimmed = redeemCode.trimmingCharacters(in: .whitespaces).uppercased()
 
         do {
-            var request = URLRequest(url: URL(string: "\(serverUrl)/v1/subscription/redeem")!)
+            guard let redeemURL = URL(string: "\(serverUrl)/v1/subscription/redeem") else {
+                redeemError = String(localized: "redeem_network_error")
+                isRedeeming = false
+                return
+            }
+            var request = URLRequest(url: redeemURL)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

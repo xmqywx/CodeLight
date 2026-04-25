@@ -249,7 +249,10 @@ final class StoreManager: ObservableObject {
             return .authExpired
         }
 
-        let url = URL(string: "\(serverUrl)/v1/subscription/verify")!
+        guard let url = URL(string: "\(serverUrl)/v1/subscription/verify") else {
+            print("[StoreManager] Malformed server URL: \(serverUrl)")
+            return .networkError
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -93,7 +93,7 @@ final class LiveActivityManager {
             return
         }
 
-        let url = URL(string: "\(serverUrl)/v1/live-activity-tokens")!
+        guard let url = URL(string: "\(serverUrl)/v1/live-activity-tokens") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
