@@ -4038,38 +4038,6 @@
         }
       }
     },
-    "image_upload_all_failed": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Images failed to upload. Send message without them?"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图片上传失败，是否仅发送文字？"
-          }
-        }
-      }
-    },
-    "image_upload_partial_failed %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld image(s) failed to upload and will not be included."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 张图片上传失败，不会包含在消息中。"
-          }
-        }
-      }
-    },
     "sync_failed": {
       "localizations": {
         "en": {
@@ -4082,6 +4050,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "设置同步失败"
+          }
+        }
+      }
+    },
+    "image_upload_all_failed_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Images Could Not Be Sent"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片发送失败"
+          }
+        }
+      }
+    },
+    "image_upload_all_failed_message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All images failed to upload. You can still send your message without them."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有图片上传失败，你可以仅发送文字内容。"
+          }
+        }
+      }
+    },
+    "image_send_text_only": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send Text Only"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅发送文字"
           }
         }
       }

@@ -8,6 +8,14 @@ struct PendingAttachment: Identifiable {
     let thumbnail: UIImage
 }
 
+/// Per-thumbnail upload progress tracked in ChatView.uploadStates.
+enum UploadState: Equatable {
+    case idle
+    case uploading
+    case done(blobId: String)
+    case failed
+}
+
 /// Lifecycle of a message the user just sent. Used to fill the gap between
 /// "user pressed send" and "Claude streams a real reply" — that gap can be
 /// 2-5 seconds (server roundtrip + cmux paste + Claude warmup) and used to
@@ -48,7 +56,9 @@ struct ChatView: View {
     @State private var showPhotoLibrary = false
     @State private var showCamera = false
     @State private var isSending = false
-    @State private var sendError: String? = nil
+    @State private var uploadStates: [UUID: UploadState] = [:]
+    @State private var showSendWithoutImagesAlert = false
+    @State private var pendingTextForAlert = ""
     @State private var showCapabilitySheet = false
     @State private var isLoading = true
     @State private var isLoadingMore = false
@@ -335,6 +345,19 @@ struct ChatView: View {
             deltaFetchTask?.cancel()
             deltaFetchTask = nil
         }
+        .alert(String(localized: "image_upload_all_failed_title"),
+               isPresented: $showSendWithoutImagesAlert) {
+            Button(String(localized: "image_send_text_only")) {
+                sendTextOnly(pendingTextForAlert)
+            }
+            Button(String(localized: "cancel"), role: .cancel) {
+                // User cancelled — clear failed states so thumbnails reset
+                uploadStates = [:]
+                isSending = false
+            }
+        } message: {
+            Text(String(localized: "image_upload_all_failed_message"))
+        }
     }
 
     // MARK: - Turn State
@@ -474,14 +497,21 @@ struct ChatView: View {
                                     .frame(width: 64, height: 64)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                                Button {
-                                    pendingAttachments.removeAll { $0.id == att.id }
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundStyle(.white, .black.opacity(0.7))
+                                // Upload state overlay
+                                uploadStateOverlay(for: att)
+
+                                // Dismiss button — hidden while uploading
+                                if uploadStates[att.id] != .uploading {
+                                    Button {
+                                        pendingAttachments.removeAll { $0.id == att.id }
+                                        uploadStates.removeValue(forKey: att.id)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(.white, .black.opacity(0.7))
+                                    }
+                                    .offset(x: 4, y: -4)
                                 }
-                                .offset(x: 4, y: -4)
                             }
                         }
                     }
@@ -605,23 +635,40 @@ struct ChatView: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Theme.bgPrimary)
-        .overlay(alignment: .top) {
-            VStack(spacing: 0) {
-                Rectangle()
-                    .fill(Theme.divider)
-                    .frame(height: 0.5)
-                if let err = sendError {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundStyle(Theme.danger)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
+        .overlay(
+            Rectangle().fill(Theme.divider).frame(height: 0.5),
+            alignment: .top
+        )
+    }
+
+    @ViewBuilder
+    private func uploadStateOverlay(for att: PendingAttachment) -> some View {
+        switch uploadStates[att.id] {
+        case .uploading:
+            ZStack {
+                Color.black.opacity(0.45)
+                ProgressView().controlSize(.small).tint(.white)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        case .done:
+            ZStack {
+                Color.black.opacity(0.25)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.green)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        case .failed:
+            ZStack {
+                Color.red.opacity(0.55)
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        default:
+            EmptyView()
         }
-        .animation(.easeInOut(duration: 0.2), value: sendError)
     }
 
     private var canSend: Bool {
@@ -803,36 +850,45 @@ struct ChatView: View {
         isSending = true
 
         Task {
-            // Upload blobs first (if any), keeping the raw data in a local cache so
-            // MessageRow can render the image immediately in history.
+            // Upload blobs first — each thumbnail shows its own progress state.
             var blobIds: [String] = []
-            var uploadFailCount = 0
             if !attachmentsToSend.isEmpty, let socket = appState.socket {
                 for att in attachmentsToSend {
+                    await MainActor.run { uploadStates[att.id] = .uploading }
                     if let id = try? await socket.uploadBlob(data: att.data, mime: "image/jpeg") {
                         blobIds.append(id)
-                        await MainActor.run { appState.addSentImage(att.data, forBlobId: id) }
+                        await MainActor.run {
+                            uploadStates[att.id] = .done(blobId: id)
+                            appState.addSentImage(att.data, forBlobId: id)
+                        }
                     } else {
-                        uploadFailCount += 1
+                        await MainActor.run { uploadStates[att.id] = .failed }
                     }
                 }
             }
-            // If some images failed to upload, warn the user before the message goes out.
-            if uploadFailCount > 0 {
+
+            // All images failed → show Alert, let user choose "send text only" or cancel.
+            if !attachmentsToSend.isEmpty && blobIds.isEmpty {
                 await MainActor.run {
                     isSending = false
                     pendingSend = nil
-                    let msg = uploadFailCount == attachmentsToSend.count
-                        ? String(localized: "image_upload_all_failed")
-                        : String(format: String(localized: "image_upload_partial_failed %lld"), uploadFailCount)
-                    // Reuse the compose bar error — brief, non-blocking.
-                    sendError = msg
+                    pendingTextForAlert = text
+                    showSendWithoutImagesAlert = true
                 }
-                if blobIds.isEmpty { return }
-                // Some succeeded — continue sending with the ones that uploaded.
-                await MainActor.run {
-                    isSending = true
-                    sendError = nil
+                return
+            }
+
+            // Some failed but at least one succeeded — continue with uploaded images.
+            // Failed thumbnails stay red so user can see which ones didn't make it.
+            // Clear successful states after a brief moment.
+            if !blobIds.isEmpty {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    await MainActor.run {
+                        for att in attachmentsToSend {
+                            if case .done = uploadStates[att.id] { uploadStates.removeValue(forKey: att.id) }
+                        }
+                    }
                 }
             }
 
@@ -877,8 +933,30 @@ struct ChatView: View {
                                       localId: localId)
                 messages.append(msg)
                 isSending = false
+                uploadStates = [:]
             }
         }
+    }
+
+    /// Called from the "Send text only" Alert when all image uploads failed.
+    private func sendTextOnly(_ text: String) {
+        uploadStates = [:]
+        pendingAttachments = []
+        guard !text.isEmpty, let socket = appState.socket else { return }
+        let localId = UUID().uuidString
+        pendingSend = PendingSend(localId: localId, startedAt: Date(), stage: .sending)
+        appState.sendMessage(text, toSession: sessionId, localId: localId) {
+            if pendingSend?.localId == localId, pendingSend?.stage == .sending {
+                pendingSend?.stage = .delivered
+                UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.6)
+            }
+        }
+        let msg = ChatMessage(id: "local-\(localId)",
+                              seq: (messages.last?.seq ?? 0) + 1,
+                              content: text,
+                              localId: localId)
+        messages.append(msg)
+        _ = socket  // silence unused warning
     }
 }
 
