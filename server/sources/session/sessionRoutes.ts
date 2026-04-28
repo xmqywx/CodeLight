@@ -28,14 +28,18 @@ export async function sessionRoutes(app: FastifyInstance) {
             projectPath: string;
         };
 
-        // Must be linked to that Mac
-        const accessible = await getAccessibleDeviceIds(me);
+        // Run both DB lookups in parallel — they're independent and the
+        // sequential version added ~30-80ms of pointless DB roundtrips on
+        // every launch (the dominant cost on warm caches).
+        const [accessible, preset] = await Promise.all([
+            getAccessibleDeviceIds(me),
+            db.launchPreset.findUnique({ where: { id: presetId } }),
+        ]);
+
         if (!accessible.includes(macDeviceId)) {
             return reply.code(403).send({ error: 'Not linked to that device' });
         }
 
-        // Validate preset belongs to that Mac
-        const preset = await db.launchPreset.findUnique({ where: { id: presetId } });
         if (!preset || preset.deviceId !== macDeviceId) {
             return reply.code(404).send({ error: 'Preset not found on that device' });
         }
@@ -129,7 +133,10 @@ export async function sessionRoutes(app: FastifyInstance) {
         const session = await db.session.upsert({
             where: { deviceId_tag: { deviceId, tag } },
             create: { tag, deviceId, metadata },
-            update: {},
+            // Re-activating an existing session (same preset re-launched):
+            // reset active + lastActiveAt so it re-appears in the Active tab
+            // on the iPhone. Also update metadata in case project path changed.
+            update: { active: true, lastActiveAt: new Date(), metadata },
         });
 
         // Notify all linked devices (iPhones) that the session list changed.
@@ -210,20 +217,33 @@ export async function sessionRoutes(app: FastifyInstance) {
             return reply.code(403).send({ error: 'Access denied' });
         }
 
-        // Filter out duplicates by localId
-        const newMessages = [];
-        const existingResults = [];
-        for (const msg of messages) {
-            if (msg.localId) {
-                const existing = await db.sessionMessage.findUnique({
-                    where: { sessionId_localId: { sessionId, localId: msg.localId } },
-                });
-                if (existing) {
-                    existingResults.push({ id: existing.id, seq: existing.seq, localId: existing.localId });
-                    continue;
-                }
+        // Filter out duplicates by localId — single batched lookup instead
+        // of one findUnique per message. With 5-10 messages per batch the
+        // sequential version was the dominant cost on send.
+        const localIds = messages
+            .map((m) => m.localId)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+        const existingByLocalId = new Map<string, { id: string; seq: number; localId: string | null }>();
+        if (localIds.length > 0) {
+            const rows = await db.sessionMessage.findMany({
+                where: { sessionId, localId: { in: localIds } },
+                select: { id: true, seq: true, localId: true },
+            });
+            for (const row of rows) {
+                if (row.localId) existingByLocalId.set(row.localId, row);
             }
-            newMessages.push(msg);
+        }
+
+        const newMessages: typeof messages = [];
+        const existingResults: Array<{ id: string; seq: number; localId: string | null }> = [];
+        for (const msg of messages) {
+            const dup = msg.localId ? existingByLocalId.get(msg.localId) : undefined;
+            if (dup) {
+                existingResults.push(dup);
+            } else {
+                newMessages.push(msg);
+            }
         }
 
         if (newMessages.length === 0) {

@@ -22,6 +22,24 @@ function getStaleThresholdMs(): number {
 // worst case we miss one notification right after a restart.
 const lastPhaseBySession = new Map<string, string>();
 
+// Cache the aggregate session counts shown in the Live Activity. Every phase
+// event would otherwise fire two table-wide COUNTs against Sessions — for an
+// active server that's hundreds of pointless scans per minute.
+let cachedCounts: { total: number; active: number; expiresAt: number } | null = null;
+const COUNTS_CACHE_TTL_MS = 30_000;
+async function getCachedSessionCounts(): Promise<{ total: number; active: number }> {
+    const now = Date.now();
+    if (cachedCounts && cachedCounts.expiresAt > now) {
+        return { total: cachedCounts.total, active: cachedCounts.active };
+    }
+    const [total, active] = await Promise.all([
+        db.session.count(),
+        db.session.count({ where: { active: true } }),
+    ]);
+    cachedCounts = { total, active, expiresAt: now + COUNTS_CACHE_TTL_MS };
+    return { total, active };
+}
+
 /// Pull the latest user message + the latest assistant message for a session
 /// directly from SessionMessage. We can't trust phase payload fields because
 /// MioIsland sometimes ships a phase event before its in-memory snapshot
@@ -209,11 +227,13 @@ export function registerSessionHandler(
                 },
             });
 
-            // Look up tag (Claude UUID) and path so receivers can route to a terminal
-            // even if they aren't currently tracking this session locally.
+            // Single session lookup that covers everything below: routing
+            // (tag/path), Live Activity (metadata, deviceId), and notifications.
+            // Previously this was 3 separate findUnique calls in the same
+            // handler — every Mac→server message paid for all three.
             const sessionInfo = await db.session.findUnique({
                 where: { id: data.sid },
-                select: { tag: true, metadata: true },
+                select: { tag: true, metadata: true, deviceId: true },
             });
             let sessionTag: string | null = sessionInfo?.tag ?? null;
             let sessionPath: string | null = null;
@@ -229,6 +249,13 @@ export function registerSessionHandler(
                 sessionPath,
                 message: { id: message.id, seq, content: data.message, localId: data.localId },
             }, { type: 'all-interested-in-session', sessionId: data.sid }, socket);
+
+            // ACK the Mac NOW. The message is persisted and the broadcast is
+            // out the door — everything below (Live Activity, push, notifications)
+            // is best-effort fire-and-forget. Previously the ack waited for
+            // 5+ extra DB queries on every phase event, adding 100-300ms of
+            // round-trip lag that the Mac couldn't avoid.
+            callback?.({ id: message.id, seq });
 
             // Handle phase messages: push Live Activity update via APNs
             try {
@@ -246,17 +273,15 @@ export function registerSessionHandler(
                     if (globalTokens.length === 0) {
                         console.log(`[Phase]   no global Live Activity tokens registered`);
                     } else {
-                        const session = await db.session.findUnique({
-                            where: { id: data.sid },
-                            select: { metadata: true, deviceId: true },
-                        });
-                        const resolved = resolveStableProjectName(session?.metadata);
+                        const resolved = resolveStableProjectName(sessionInfo?.metadata);
                         const projectName = resolved.name;
                         const projectPath = resolved.path;
 
-                        // Count sessions for aggregate display
-                        const totalSessions = await db.session.count();
-                        const activeSessions = await db.session.count({ where: { active: true } });
+                        // Cached aggregate counts — every phase event was running
+                        // 2 table-wide COUNTs which add up fast.
+                        const counts = await getCachedSessionCounts();
+                        const totalSessions = counts.total;
+                        const activeSessions = counts.active;
 
                         const contentState = {
                             activeSessionId: data.sid,
@@ -294,56 +319,49 @@ export function registerSessionHandler(
                     lastPhaseBySession.set(data.sid, newPhase);
                     console.log(`[transition] ${data.sid.substring(0,10)} ${prevPhase ?? '(first)'} → ${newPhase}`);
 
-                    if (prevPhase && prevPhase !== newPhase) {
-                        const session = await db.session.findUnique({
-                            where: { id: data.sid },
-                            select: { deviceId: true, metadata: true },
-                        });
-                        if (session) {
-                            const projectName = resolveStableProjectName(session.metadata).name;
+                    if (prevPhase && prevPhase !== newPhase && sessionInfo) {
+                        const projectName = resolveStableProjectName(sessionInfo.metadata).name;
 
-                            if (newPhase === 'ended' && prevPhase !== 'ended') {
-                                // Pull the actual latest user question + assistant
-                                // reply from the DB so the notification reflects
-                                // *this* turn, not a stale phase-payload snapshot.
-                                const { userText, assistantText } = await fetchLatestQAndA(data.sid);
-                                const title = userText
-                                    ? shapeNotificationText(userText, 60)
-                                    : projectName;
-                                const body = assistantText
-                                    ? shapeNotificationText(assistantText, 280)
-                                    : 'Claude is ready for your next message';
-                                notifyLinkedIPhones({
-                                    macDeviceId: session.deviceId,
-                                    kind: 'completion',
-                                    title,
-                                    subtitle: userText ? projectName : undefined,
-                                    body,
-                                    sessionId: data.sid,
-                                }).catch(() => {});
-                            } else if (newPhase === 'waiting_approval') {
-                                const tool = (parsed.toolName || 'a tool').toString();
-                                const { userText } = await fetchLatestQAndA(data.sid);
-                                notifyLinkedIPhones({
-                                    macDeviceId: session.deviceId,
-                                    kind: 'approval',
-                                    title: userText ? shapeNotificationText(userText, 60) : projectName,
-                                    subtitle: userText ? projectName : undefined,
-                                    body: `Needs approval: ${tool}`,
-                                    sessionId: data.sid,
-                                }).catch(() => {});
-                            }
+                        if (newPhase === 'ended' && prevPhase !== 'ended') {
+                            // Pull the actual latest user question + assistant
+                            // reply from the DB so the notification reflects
+                            // *this* turn, not a stale phase-payload snapshot.
+                            const { userText, assistantText } = await fetchLatestQAndA(data.sid);
+                            const title = userText
+                                ? shapeNotificationText(userText, 60)
+                                : projectName;
+                            const body = assistantText
+                                ? shapeNotificationText(assistantText, 280)
+                                : 'Claude is ready for your next message';
+                            notifyLinkedIPhones({
+                                macDeviceId: sessionInfo.deviceId,
+                                kind: 'completion',
+                                title,
+                                subtitle: userText ? projectName : undefined,
+                                body,
+                                sessionId: data.sid,
+                            }).catch(() => {});
+                        } else if (newPhase === 'waiting_approval') {
+                            const tool = (parsed.toolName || 'a tool').toString();
+                            const { userText } = await fetchLatestQAndA(data.sid);
+                            notifyLinkedIPhones({
+                                macDeviceId: sessionInfo.deviceId,
+                                kind: 'approval',
+                                title: userText ? shapeNotificationText(userText, 60) : projectName,
+                                subtitle: userText ? projectName : undefined,
+                                body: `Needs approval: ${tool}`,
+                                sessionId: data.sid,
+                            }).catch(() => {});
                         }
                     }
                 }
 
                 // Tool error → respect per-device notifyOnError
                 if (parsed.type === 'tool' && parsed.toolStatus === 'error') {
-                    const session = await db.session.findUnique({ where: { id: data.sid }, select: { deviceId: true, metadata: true } });
-                    if (session) {
-                        const projectName = resolveStableProjectName(session.metadata).name;
+                    if (sessionInfo) {
+                        const projectName = resolveStableProjectName(sessionInfo.metadata).name;
                         notifyLinkedIPhones({
-                            macDeviceId: session.deviceId,
+                            macDeviceId: sessionInfo.deviceId,
                             kind: 'error',
                             title: projectName,
                             body: `${parsed.toolName || 'Tool'} failed`,
@@ -352,8 +370,7 @@ export function registerSessionHandler(
                     }
                 }
             } catch {}
-
-            callback?.({ id: message.id, seq });
+            // (callback already fired above, before phase processing)
         } catch (error) {
             callback?.({ error: 'Failed to save message' });
         }

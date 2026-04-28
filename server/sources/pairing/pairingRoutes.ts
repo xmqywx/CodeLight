@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '@/storage/db';
 import { authMiddleware } from '@/auth/middleware';
-import { linkDevices } from '@/auth/deviceAccess';
+import { linkDevices, invalidateAccessCache } from '@/auth/deviceAccess';
 import { eventRouter } from '@/socket/socketServer';
 
 export async function pairingRoutes(app: FastifyInstance) {
@@ -241,6 +241,9 @@ export async function pairingRoutes(app: FastifyInstance) {
         if (deleted.count === 0) {
             return reply.code(404).send({ error: 'Link not found' });
         }
+
+        // Drop cached access decisions so the unlinked device loses access immediately.
+        invalidateAccessCache();
 
         // Cascade push-token cleanup for any device that just became unlinked.
         for (const id of [myDeviceId, targetDeviceId]) {
