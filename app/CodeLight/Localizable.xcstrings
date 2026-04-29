@@ -1372,6 +1372,17 @@
         }
       }
     },
+    "new_messages_below" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "新消息"
+          }
+        }
+      }
+    },
     "No Data" : {
 
     },
