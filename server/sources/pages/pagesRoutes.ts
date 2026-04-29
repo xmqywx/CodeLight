@@ -20,7 +20,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 </head>
 <body>
 <h1>Privacy Policy / 隐私政策</h1>
-<p class="sub">Last updated / 最后更新：2026-04-24</p>
+<p class="sub">Last updated / 最后更新：2026-04-29</p>
 
 <h2>1. Overview / 概述</h2>
 <p>CodeLight is a mobile companion for Claude Code on Mac. We are committed to protecting your privacy.
@@ -50,8 +50,8 @@ All connections are encrypted with TLS. Auth tokens are stored in the iOS Keycha
 相机仅用于配对时扫描二维码，不拍摄或存储任何照片和视频。</p>
 
 <h2>5. Push Notifications / 推送通知</h2>
-<p>Push notifications are delivered via Apple APNs. Notification content is end-to-end encrypted. You can disable notifications at any time in iOS Settings.
-推送通知通过 Apple APNs 发送，通知内容端对端加密。您可以随时在 iOS 设置中关闭。</p>
+<p>Push notifications are delivered via Apple APNs. You can disable notifications at any time in iOS Settings.
+推送通知通过 Apple APNs 发送。您可以随时在 iOS 设置中关闭。</p>
 
 <h2>6. Third-Party Services / 第三方服务</h2>
 <p>We use Apple StoreKit 2 for in-app purchases and Apple APNs for push notifications. No third-party analytics SDKs are included.
@@ -64,8 +64,6 @@ All connections are encrypted with TLS. Auth tokens are stored in the iOS Keycha
 <h2>8. Contact / 联系我们</h2>
 <p>Email: <a href="mailto:xmqywx@wdao.chat">xmqywx@wdao.chat</a></p>
 
-<hr>
-<p style="font-size:13px;color:#aaa">Open source: <a href="https://github.com/MioMioOS/CodeLight">github.com/MioMioOS/CodeLight</a></p>
 </body>
 </html>`;
 
@@ -95,7 +93,6 @@ const SUPPORT_HTML = `<!DOCTYPE html>
 <h2>Contact / 联系我们</h2>
 <div class="card">
   <p>📧 Email: <a href="mailto:xmqywx@wdao.chat">xmqywx@wdao.chat</a></p>
-  <p>🐛 Bug reports: <a href="https://github.com/MioMioOS/CodeLight/issues">GitHub Issues</a></p>
 </div>
 
 <h2>FAQ</h2>
@@ -116,9 +113,6 @@ CodeLight 需要先和 Mac 上的 <strong>MioIsland</strong> 配对才能使用�
 <h3>Q: Restore purchase / 恢复购买</h3>
 <p>In the subscription screen, tap "Restore Purchase" at the bottom.
 在付款页面点底部「恢复购买」。</p>
-
-<h3>Q: MioIsland download / MioIsland 下载</h3>
-<p><a href="https://github.com/MioMioOS/MioIsland/releases">github.com/MioMioOS/MioIsland/releases</a></p>
 
 <hr>
 <p style="font-size:13px;color:#aaa">
