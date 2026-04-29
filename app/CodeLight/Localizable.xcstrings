@@ -454,22 +454,6 @@
     "Close" : {
 
     },
-    "codeisland_mac_companion" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MioIsland (Mac companion)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MioIsland (Mac 伴侣应用)"
-          }
-        }
-      }
-    },
     "Commands & Skills" : {
 
     },
@@ -917,26 +901,7 @@
         }
       }
     },
-    "github" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub"
-          }
-        }
-      }
-    },
     "https://code.7ove.online" : {
-
-    },
-    "https://github.com/xmqywx/CodeLight" : {
 
     },
     "image_send_text_only" : {
@@ -1901,13 +1866,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questions about this privacy policy can be sent to xmqywx@gmail.com or filed on GitHub Issues at https://github.com/xmqywx/CodeLight/issues."
+            "value" : "The full privacy policy is available at https://code.7ove.online/privacy."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关于隐私政策的问题可发送至 xmqywx@gmail.com，或在 GitHub Issues 提交：https://github.com/xmqywx/CodeLight/issues。"
+            "value" : "完整隐私政策见：https://code.7ove.online/privacy。"
           }
         }
       }
@@ -1976,82 +1941,18 @@
         }
       }
     },
-    "privacy_encryption" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "End-to-End Encryption"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "端到端加密"
-          }
-        }
-      }
-    },
-    "privacy_encryption_body" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Messages between your Mac and iPhone are designed to be end-to-end encrypted. The CodeLight Server acts as a zero-knowledge relay — it stores encrypted data without the ability to read it."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的 Mac 和 iPhone 之间的消息采用端到端加密设计。CodeLight 服务器作为零知识中继——它存储加密数据但无法读取内容。"
-          }
-        }
-      }
-    },
     "privacy_last_updated" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Last updated: April 7, 2026"
+            "value" : "Last updated: April 29, 2026"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最后更新：2026 年 4 月 7 日"
-          }
-        }
-      }
-    },
-    "privacy_open_source" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Source"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开源"
-          }
-        }
-      }
-    },
-    "privacy_open_source_body" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CodeLight is open source. You can review the complete source code at:"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CodeLight 是开源项目，你可以在下面的地址查看完整源代码："
+            "value" : "最后更新：2026 年 4 月 29 日"
           }
         }
       }
@@ -2077,13 +1978,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeLight is an open-source application that syncs Claude Code sessions between your Mac and iPhone. Your privacy is important to us."
+            "value" : "CodeLight syncs Claude Code sessions between your Mac and iPhone. Your privacy is important to us."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodeLight 是一款开源应用，用于在你的 Mac 与 iPhone 之间同步 Claude Code 会话。我们重视你的隐私。"
+            "value" : "CodeLight 用于在你的 Mac 与 iPhone 之间同步 Claude Code 会话。我们重视你的隐私。"
           }
         }
       }

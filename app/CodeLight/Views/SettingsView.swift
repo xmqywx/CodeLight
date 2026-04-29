@@ -320,18 +320,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let codelightURL = URL(string: "https://github.com/xmqywx/CodeLight") {
-                    Link(destination: codelightURL) {
-                        Label(String(localized: "github"), systemImage: "link")
-                    }
-                }
-
-                if let mioIslandURL = URL(string: "https://github.com/MioMioOS/MioIsland") {
-                    Link(destination: mioIslandURL) {
-                        Label(String(localized: "codeisland_mac_companion"), systemImage: "desktopcomputer")
-                    }
-                }
-
                 Button {
                     showPrivacy = true
                 } label: {

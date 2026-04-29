@@ -34,11 +34,6 @@ struct PrivacyPolicyView: View {
                     )
 
                     section(
-                        title: String(localized: "privacy_encryption"),
-                        body: String(localized: "privacy_encryption_body")
-                    )
-
-                    section(
                         title: String(localized: "privacy_third_party"),
                         body: String(localized: "privacy_third_party_body")
                     )
@@ -52,14 +47,6 @@ struct PrivacyPolicyView: View {
                         title: String(localized: "privacy_push"),
                         body: String(localized: "privacy_push_body")
                     )
-
-                    section(
-                        title: String(localized: "privacy_open_source"),
-                        body: String(localized: "privacy_open_source_body")
-                    )
-                    Link("https://github.com/xmqywx/CodeLight",
-                         destination: URL(string: "https://github.com/xmqywx/CodeLight")!)
-                        .font(.footnote)
 
                     section(
                         title: String(localized: "privacy_contact"),
