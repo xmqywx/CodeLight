@@ -182,4 +182,137 @@ export async function redeemRoutes(app: FastifyInstance) {
 
         return { success: true, codes, durationDays, maxUses };
     });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Admin: List redeem codes with filter + pagination.
+    // Filter status: all | unused (usedCount=0) | used (usedCount>0 and <maxUses)
+    //              | exhausted (usedCount>=maxUses) | revoked (maxUses=0)
+    // ─────────────────────────────────────────────────────────────────────
+    app.post('/v1/admin/redeem-codes/list', {
+        schema: {
+            body: z.object({
+                secret: z.string().min(1),
+                status: z.enum(['all', 'unused', 'used', 'exhausted', 'revoked']).default('all'),
+                limit: z.number().int().min(1).max(500).default(100),
+                offset: z.number().int().min(0).default(0),
+            }),
+        },
+    }, async (request, reply) => {
+        const { secret, status, limit, offset } = request.body as {
+            secret: string;
+            status: 'all' | 'unused' | 'used' | 'exhausted' | 'revoked';
+            limit: number;
+            offset: number;
+        };
+
+        if (!config.revokeSharedSecret || secret !== config.revokeSharedSecret) {
+            return reply.code(403).send({ error: 'Unauthorized' });
+        }
+
+        // Pull all rows, filter in memory. The table is small (admin-issued
+        // codes only). A SQL-level filter would need raw SQL because Prisma
+        // can't compare two columns natively.
+        const all = await db.redeemCode.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+
+        const filtered = all.filter((c) => {
+            if (status === 'all') return true;
+            if (status === 'revoked') return c.maxUses === 0;
+            if (status === 'exhausted') return c.maxUses > 0 && c.usedCount >= c.maxUses;
+            if (status === 'unused') return c.usedCount === 0 && c.maxUses > 0;
+            if (status === 'used') return c.usedCount > 0 && c.usedCount < c.maxUses;
+            return true;
+        });
+
+        const total = filtered.length;
+        const page = filtered.slice(offset, offset + limit);
+
+        return {
+            total,
+            limit,
+            offset,
+            codes: page.map((c) => ({
+                id: c.id,
+                code: c.code,
+                durationDays: c.durationDays,
+                maxUses: c.maxUses,
+                usedCount: c.usedCount,
+                createdBy: c.createdBy,
+                note: c.note,
+                expiresAt: c.expiresAt?.toISOString() || null,
+                createdAt: c.createdAt.toISOString(),
+            })),
+        };
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Admin: Stats summary.
+    // ─────────────────────────────────────────────────────────────────────
+    app.post('/v1/admin/redeem-codes/stats', {
+        schema: {
+            body: z.object({
+                secret: z.string().min(1),
+            }),
+        },
+    }, async (request, reply) => {
+        const { secret } = request.body as { secret: string };
+
+        if (!config.revokeSharedSecret || secret !== config.revokeSharedSecret) {
+            return reply.code(403).send({ error: 'Unauthorized' });
+        }
+
+        const all = await db.redeemCode.findMany({
+            select: { maxUses: true, usedCount: true },
+        });
+
+        let total = all.length;
+        let unused = 0;
+        let used = 0;
+        let exhausted = 0;
+        let revoked = 0;
+        let totalRedemptions = 0;
+
+        for (const c of all) {
+            totalRedemptions += c.usedCount;
+            if (c.maxUses === 0) revoked++;
+            else if (c.usedCount >= c.maxUses) exhausted++;
+            else if (c.usedCount > 0) used++;
+            else unused++;
+        }
+
+        return { total, unused, used, exhausted, revoked, totalRedemptions };
+    });
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Admin: Revoke (set maxUses=0). Already-redeemed users keep access.
+    // ─────────────────────────────────────────────────────────────────────
+    app.post('/v1/admin/redeem-codes/:code/revoke', {
+        schema: {
+            params: z.object({ code: z.string().min(1).max(50) }),
+            body: z.object({ secret: z.string().min(1) }),
+        },
+    }, async (request, reply) => {
+        const { code } = request.params as { code: string };
+        const { secret } = request.body as { secret: string };
+
+        if (!config.revokeSharedSecret || secret !== config.revokeSharedSecret) {
+            return reply.code(403).send({ error: 'Unauthorized' });
+        }
+
+        const normalized = code.trim().toUpperCase();
+        const existing = await db.redeemCode.findUnique({ where: { code: normalized } });
+        if (!existing) {
+            return reply.code(404).send({ error: 'not_found', message: 'Code does not exist' });
+        }
+
+        await db.redeemCode.update({
+            where: { code: normalized },
+            data: { maxUses: 0 },
+        });
+
+        console.log(`[admin] Revoked redeem code ${normalized}`);
+
+        return { success: true, code: normalized, status: 'revoked' };
+    });
 }
