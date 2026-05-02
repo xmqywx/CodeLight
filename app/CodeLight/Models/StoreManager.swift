@@ -118,31 +118,38 @@ final class StoreManager: ObservableObject {
         case .success(let verification):
             switch verification {
             case .verified(let tx):
-                purchaseState = .verifying
-                purchasedButPendingVerify = true
-
-                // Persist for retry in case server is unreachable.
-                // Record the server URL at purchase time so retries go to the right server.
+                // Apple has verified the purchase — local entitlement is now real.
+                // Grant it IMMEDIATELY and let the UI move on. Server sync runs
+                // in the background; if it fails it will retry on reconnect.
+                //
+                // Critical for App Review: a fresh install with no paired Mac
+                // has no server URL, so verifyWithServer would have returned
+                // networkError and stranded the user on a "verifying..." spinner
+                // forever. By acknowledging Apple's verification synchronously,
+                // the purchase flow always completes for the user.
+                isPurchased = true
+                purchasedButPendingVerify = false
+                purchaseState = .success
                 savePendingVerify(originalTransactionId: tx.originalID)
-                let verifyResult = await verifyWithServer(originalTransactionId: tx.originalID)
-
                 await tx.finish()
 
-                switch verifyResult {
-                case .success:
-                    isPurchased = true
-                    purchasedButPendingVerify = false
-                    purchaseState = .success
-                case .authExpired:
-                    // Token expired — tell AppState to re-authenticate.
-                    purchasedButPendingVerify = true
-                    purchaseState = .pendingServerVerify
-                    AppState.shared.needsReauthentication = true
-                case .networkError, .serverError:
-                    // Purchase is real (StoreKit confirmed), but server doesn't know yet.
-                    // Will retry on next reconnect.
-                    purchasedButPendingVerify = true
-                    purchaseState = .pendingServerVerify
+                // Background server sync. Best-effort.
+                // Capture only the UInt64 id, not the Transaction itself,
+                // to avoid Sendable churn in Swift 6 strict concurrency.
+                let txID = tx.originalID
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    let verifyResult = await self.verifyWithServer(originalTransactionId: txID)
+                    switch verifyResult {
+                    case .success:
+                        self.purchasedButPendingVerify = false
+                    case .authExpired:
+                        self.purchasedButPendingVerify = true
+                        AppState.shared.needsReauthentication = true
+                    case .networkError, .serverError:
+                        // retryPendingVerify() will pick this up on next reconnect.
+                        self.purchasedButPendingVerify = true
+                    }
                 }
                 return tx
 
@@ -197,15 +204,18 @@ final class StoreManager: ObservableObject {
                 switch result {
                 case .verified(let tx):
                     if tx.revocationDate != nil {
-                        // Refund: revoke access
+                        // Refund: revoke local access. Server will hear via
+                        // App Store Server Notifications independently.
                         self.isPurchased = false
                         self.purchasedButPendingVerify = false
                     } else {
+                        // Apple-verified entitlement (Ask-to-Buy, Family Sharing,
+                        // restore on new device). Grant locally immediately.
+                        self.isPurchased = true
                         self.purchasedButPendingVerify = true
                         self.savePendingVerify(originalTransactionId: tx.originalID)
                         let verifyResult = await self.verifyWithServer(originalTransactionId: tx.originalID)
                         if verifyResult == .success {
-                            self.isPurchased = true
                             self.purchasedButPendingVerify = false
                         }
                         if verifyResult == .authExpired {
